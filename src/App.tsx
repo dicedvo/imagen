@@ -26,7 +26,9 @@ import {
   SlidersHorizontalIcon,
   TagIcon,
   TagsIcon,
+  TrashIcon,
   UploadIcon,
+  X,
 } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -170,18 +172,29 @@ function App() {
     useShallow((state) => [state.fields, state.addFields]),
   );
 
-  const [records, currentRecord] = useRecordsStore(
-    useShallow((state) => [state.records, state.currentRecord()]),
-  );
-
-  const [addRecords, setCurrentRecordIndex, setSelectedRecordIndices] =
+  const [records, currentRecord, selectedRecords, selectedRecordIndices] =
     useRecordsStore(
       useShallow((state) => [
-        state.addRecords,
-        state.setCurrentRecordIndex,
-        state.setSelectedRecordIndices,
+        state.records,
+        state.currentRecord(),
+        state.selectedRecords(),
+        state.selectedRecordIndices,
       ]),
     );
+
+  const [
+    addRecords,
+    removeRecord,
+    setCurrentRecordIndex,
+    setSelectedRecordIndices,
+  ] = useRecordsStore(
+    useShallow((state) => [
+      state.addRecords,
+      state.removeRecord,
+      state.setCurrentRecordIndex,
+      state.setSelectedRecordIndices,
+    ]),
+  );
 
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
 
@@ -356,14 +369,60 @@ function App() {
             </div>
 
             <div className="flex-1 overflow-y-hidden">
+              {selectedRecords.length !== 0 && (
+                <div className="bg-white border-y p-2 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="px-2 py-1 rounded-full"
+                      onClick={() => setSelectedRecordIndices()}
+                    >
+                      <X size={20} />
+                    </Button>
+
+                    <span className="text-sm">
+                      {selectedRecords.length} selected
+                    </span>
+                  </div>
+
+                  <div className="flex space-x-2 items-center">
+                    <ExportDialog scope="selected" onSuccess={() => {}}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={!isExportable}
+                      >
+                        <DownloadIcon className="mr-2" size={20} />
+                        <span>Export</span>
+                      </Button>
+                    </ExportDialog>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        for (const record of selectedRecords) {
+                          removeRecord(record.__id!);
+                        }
+                        setSelectedRecordIndices();
+                      }}
+                    >
+                      <TrashIcon className="mr-2" size={20} />
+                      <span>Delete</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {fields.length !== 0 ? (
                 <DataTable
                   className="border-y"
+                  rowSelection={selectedRecordIndices
+                    .map((idx) => idx)
+                    .reduce((pv, cv) => ({ ...pv, [cv]: true }), {})}
                   onRowSelectionChange={(state) => {
                     const indices = Object.keys(state).map(Number);
-                    if (indices.length === 0) {
-                      return;
-                    }
                     setSelectedRecordIndices(...indices);
                   }}
                   columns={[
@@ -397,7 +456,7 @@ function App() {
                     // get the first 3 columns only
                     ...shownColumns.slice(0, 3),
                     {
-                      header: "Actions",
+                      id: "actions",
                       size: 5,
                       enableSorting: false,
                       enableResizing: false,
@@ -405,14 +464,14 @@ function App() {
                       enablePinning: true,
                       cell({ row }) {
                         return (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-1">
                             <Button
                               disabled={template == null}
                               size="sm"
                               variant="ghost"
                               onClick={() => {}}
                             >
-                              <TagIcon />
+                              <TagIcon size={20} />
                             </Button>
 
                             <Button
@@ -421,7 +480,7 @@ function App() {
                               variant="ghost"
                               onClick={() => setCurrentRecordIndex(row.index)}
                             >
-                              <ArrowRight />
+                              <ArrowRight size={20} />
                             </Button>
                           </div>
                         );

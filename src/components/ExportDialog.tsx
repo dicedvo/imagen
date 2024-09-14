@@ -219,9 +219,11 @@ async function exportRecords(
 }
 
 export default function ExportDialog({
+  scope = "current",
   onSuccess,
   children,
 }: {
+  scope?: z.infer<typeof outputExportSettingsSchema>["exportScope"];
   onSuccess: () => void;
   children: ReactNode;
 }) {
@@ -238,7 +240,7 @@ export default function ExportDialog({
     resolver: zodResolver(outputExportSettingsSchema),
     defaultValues: {
       exporterId: "",
-      exportScope: "current",
+      exportScope: scope,
       filenameFormat: "image",
       settings: {},
     },
@@ -264,6 +266,13 @@ export default function ExportDialog({
     // Set file extension to filename
     form.setValue("filenameFormat", trimmed + currentExporter.fileExtension);
   }, [exporterId, currentExporter]);
+
+  useEffect(() => {
+    form.setValue("exportScope", scope, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+  }, [scope]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

@@ -43,7 +43,7 @@ const useRecordsStore = create<RecordsState>((set, get) => ({
   },
   removeRecord: (recordKey: string) => {
     set((state) => {
-      const index = state.records.findIndex((r) => r.key === recordKey);
+      const index = state.records.findIndex((r) => r.__id === recordKey);
       if (index === -1) {
         throw new Error(`Record with key ${recordKey} not found`);
       }
@@ -76,7 +76,10 @@ const useRecordsStore = create<RecordsState>((set, get) => ({
   },
   selectedRecords: () => {
     const indices = get().selectedRecordIndices;
-    return indices.map((index) => get().records[index]);
+    const records = get().records;
+    return indices
+      .filter((index) => index < records.length)
+      .map((index) => records[index]);
   },
 }));
 

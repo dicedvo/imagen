@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  rowSelection?: RowSelectionState;
   onRowSelectionChange?: (rowSelection: RowSelectionState) => void;
 }
 
@@ -26,22 +27,24 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   onRowSelectionChange,
+  rowSelection = {},
   ...divProps
 }: DataTableProps<TData, TValue> & React.HTMLAttributes<HTMLDivElement>) {
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: (state) => {
+      if (typeof state === "function") {
+        onRowSelectionChange?.(state(rowSelection));
+      } else {
+        onRowSelectionChange?.(state);
+      }
+    },
     state: {
       rowSelection,
     },
   });
-
-  useEffect(() => {
-    onRowSelectionChange?.(rowSelection);
-  }, [rowSelection]);
 
   return (
     <div {...divProps}>
