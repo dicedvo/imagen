@@ -74,7 +74,6 @@ function ColumnsDropdown({
   const [open, setOpen] = useState(false);
   const lastSelected = useRef<string | null>(null);
   const newlySelected = useRef<string | null>(null);
-  const [interactedInside, setInteractedInside] = useState(false);
 
   const recordSelected = (colKey: string) => {
     lastSelected.current = newlySelected.current;
@@ -117,25 +116,10 @@ function ColumnsDropdown({
   }, [columnsToShow]);
 
   return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={(state) => {
-        if (!interactedInside && !state) {
-          setOpen(false);
-          return;
-        }
-        setOpen(state);
-      }}
-    >
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        className="w-56"
-        onInteractOutside={(ev) => {
-          ev.preventDefault();
-          setOpen(false);
-        }}
-      >
+      <DropdownMenuContent className="w-56">
         <DropdownMenuLabel>Columns to show</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {columns
@@ -144,6 +128,9 @@ function ColumnsDropdown({
             <DropdownMenuCheckboxItem
               key={`column-${c.accessorKey}`}
               checked={columnsToShow.includes(c.accessorKey)}
+              onSelect={(ev) => {
+                ev.preventDefault();
+              }}
               onCheckedChange={(checked) => {
                 if (checked) {
                   setColumnsToShow([...columnsToShow, c.accessorKey]);
@@ -154,7 +141,6 @@ function ColumnsDropdown({
                 }
 
                 recordSelected(c.accessorKey);
-                setInteractedInside(true);
               }}
             >
               {typeof c.header === "string" ? c.header : c.accessorKey}
