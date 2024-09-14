@@ -48,6 +48,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./components/ui/dropdown-menu";
+import { Checkbox } from "./components/ui/checkbox";
 
 function determineColumns(fields: Field[]): ColumnDef<unknown, DataRecord>[] {
   if (fields.length === 0) {
@@ -353,12 +354,46 @@ function App() {
               {fields.length !== 0 ? (
                 <DataTable
                   className="border-y"
+                  onRowSelectionChange={(state) => {
+                    console.log("onRowSelectionChange", state);
+                  }}
                   columns={[
+                    {
+                      id: "select",
+                      header: ({ table }) => (
+                        <Checkbox
+                          checked={
+                            table.getIsAllPageRowsSelected() ||
+                            (table.getIsSomePageRowsSelected() &&
+                              "indeterminate")
+                          }
+                          onCheckedChange={(value) =>
+                            table.toggleAllPageRowsSelected(!!value)
+                          }
+                          aria-label="Select all"
+                        />
+                      ),
+                      cell: ({ row }) => (
+                        <Checkbox
+                          checked={row.getIsSelected()}
+                          onCheckedChange={(value) =>
+                            row.toggleSelected(!!value)
+                          }
+                          aria-label="Select row"
+                        />
+                      ),
+                      enableSorting: false,
+                      enableHiding: false,
+                    },
                     // get the first 3 columns only
                     ...shownColumns.slice(0, 3),
                     {
                       header: "Actions",
                       size: 5,
+                      enableSorting: false,
+                      enableResizing: false,
+                      enableHiding: false,
+                      enablePinning: true,
                       cell({ row }) {
                         return (
                           <div className="flex items-center space-x-2">
