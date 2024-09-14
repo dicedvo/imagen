@@ -119,13 +119,13 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
   const tags = ["ready_for_print", "for_web", "for_email"];
 
   return (
-    <Dialog open={true}>
+    <Dialog open={false}>
       <DialogTrigger asChild>{children}</DialogTrigger>
 
       <DialogContent className="p-0 max-w-6xl">
         <div className="flex">
           <div className="w-2/3 h-[80vh] bg-gray-200 rounded-tl">
-            <PrintPreviewer />
+            <PrintPreviewer paperSize={paperSize} />
           </div>
 
           <div className="w-1/3 px-6 pb-6 overflow-y-auto h-[80vh]">
