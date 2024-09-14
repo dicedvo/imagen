@@ -17,28 +17,39 @@ import useTemplateStore from "@/stores/template_store";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowRight,
+  Columns3,
   DownloadIcon,
   ImportIcon,
   PlugIcon,
   PlusIcon,
   PrinterIcon,
   SlidersHorizontalIcon,
+  TagIcon,
+  TagsIcon,
   UploadIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import emitter from "@/lib/event-bus";
-import { compileTemplateValues, valuesFromTemplate } from "./helpers/template";
+import { compileTemplateValues, valuesFromTemplate } from "@/helpers/template";
 import { loadBasePlugins } from "./lib/base-plugin-loader";
-import InstalledPluginsDialog from "./components/InstalledPluginsDialog";
+import InstalledPluginsDialog from "@/components/InstalledPluginsDialog";
 import {
   useDataProcessorStore,
   useDataSourceStore,
 } from "./stores/registry_store";
-import ExportDialog from "./components/ExportDialog";
-import PrintDialog from "./components/PrintDialog";
+import ExportDialog from "@/components/ExportDialog";
+import PrintDialog from "@/components/PrintDialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./components/ui/dropdown-menu";
 
-function determineColumns(fields: Field[]): ColumnDef<DataRecord, unknown>[] {
+function determineColumns(fields: Field[]): ColumnDef<unknown, DataRecord>[] {
   if (fields.length === 0) {
     return [];
   }
@@ -47,6 +58,111 @@ function determineColumns(fields: Field[]): ColumnDef<DataRecord, unknown>[] {
     header: name,
     accessorKey: key,
   }));
+}
+
+function ColumnsDropdown({
+  children,
+  columns,
+  value: columnsToShow,
+  onChange: setColumnsToShow,
+}: {
+  value: string[];
+  children: ReactNode;
+  columns: ColumnDef<unknown, DataRecord>[];
+  onChange: (columnKeys: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const lastSelected = useRef<string | null>(null);
+  const newlySelected = useRef<string | null>(null);
+  const [interactedInside, setInteractedInside] = useState(false);
+
+  const recordSelected = (colKey: string) => {
+    lastSelected.current = newlySelected.current;
+    newlySelected.current = colKey;
+  };
+
+  useEffect(() => {
+    const firstThreeCols = columns
+      .filter((c) => "accessorKey" in c)
+      .map((c) => c.accessorKey)
+      .slice(0, 3);
+
+    setColumnsToShow(firstThreeCols);
+    recordSelected(firstThreeCols[firstThreeCols.length - 1]);
+  }, [columns]);
+
+  useEffect(() => {
+    if (columnsToShow.length < 3) {
+      // to avoid accidentally removing the last selected column
+      // even if the length is less than 3
+      lastSelected.current = null;
+    }
+
+    if (columnsToShow.length <= 3) {
+      return;
+    }
+
+    let newColumnsToShow = columnsToShow;
+    if (lastSelected.current) {
+      newColumnsToShow = columnsToShow.filter(
+        (k) => k !== lastSelected.current,
+      );
+    }
+
+    setColumnsToShow(
+      newColumnsToShow.length <= 3
+        ? newColumnsToShow
+        : newColumnsToShow.slice(0, 3),
+    );
+  }, [columnsToShow]);
+
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={(state) => {
+        if (!interactedInside && !state) {
+          setOpen(false);
+          return;
+        }
+        setOpen(state);
+      }}
+    >
+      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        className="w-56"
+        onInteractOutside={(ev) => {
+          ev.preventDefault();
+          setOpen(false);
+        }}
+      >
+        <DropdownMenuLabel>Columns to show</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {columns
+          .filter((c) => "accessorKey" in c)
+          .map((c) => (
+            <DropdownMenuCheckboxItem
+              key={`column-${c.accessorKey}`}
+              checked={columnsToShow.includes(c.accessorKey)}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setColumnsToShow([...columnsToShow, c.accessorKey]);
+                } else {
+                  setColumnsToShow(
+                    columnsToShow.filter((k) => k !== c.accessorKey),
+                  );
+                }
+
+                recordSelected(c.accessorKey);
+                setInteractedInside(true);
+              }}
+            >
+              {typeof c.header === "string" ? c.header : c.accessorKey}
+            </DropdownMenuCheckboxItem>
+          ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function App() {
@@ -75,10 +191,21 @@ function App() {
     useShallow((state) => [state.addRecords, state.setCurrentRecordIndex]),
   );
 
+  const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
+
   const columns = useMemo(
     () => (!fields ? [] : determineColumns(fields)),
     [fields],
   );
+
+  const shownColumns = useMemo(() => {
+    if (columnsToShow.length === 0) {
+      return columns;
+    }
+    return columns.filter(
+      (c) => "accessorKey" in c && columnsToShow.includes(c.accessorKey),
+    );
+  }, [columns, columnsToShow]);
 
   const editableTemplateInstanceValues = useMemo(() => {
     if (!template) {
@@ -189,12 +316,25 @@ function App() {
               <p className="font-semibold text-sm">Data List</p>
 
               <div>
-                <InstalledPluginsDialog>
-                  <Button size="sm" variant="ghost">
-                    <PlugIcon className="mr-2" size={16} />
-                    <span>Plugins</span>
+                <ColumnsDropdown
+                  columns={columns}
+                  value={columnsToShow}
+                  onChange={setColumnsToShow}
+                >
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={columns.length === 0}
+                  >
+                    <Columns3 className="mr-2" size={16} />
+                    <span>Columns</span>
                   </Button>
-                </InstalledPluginsDialog>
+                </ColumnsDropdown>
+
+                <Button size="sm" variant="ghost">
+                  <TagsIcon className="mr-2" size={16} />
+                  <span>Tags</span>
+                </Button>
 
                 <ManageFieldsDialog>
                   <Button size="sm" variant="ghost">
@@ -202,6 +342,13 @@ function App() {
                     <span>Manage Fields</span>
                   </Button>
                 </ManageFieldsDialog>
+
+                <ImportDataMenu sources={dataSources}>
+                  <Button size="sm" variant="ghost">
+                    <ImportIcon className="mr-2" size={16} />
+                    <span>Import</span>
+                  </Button>
+                </ImportDataMenu>
 
                 <AddEntryDialog onSuccess={addRecords}>
                   <Button
@@ -213,13 +360,6 @@ function App() {
                     <span>Add Entry</span>
                   </Button>
                 </AddEntryDialog>
-
-                <ImportDataMenu sources={dataSources}>
-                  <Button size="sm" variant="ghost">
-                    <ImportIcon className="mr-2" size={16} />
-                    <span>Import</span>
-                  </Button>
-                </ImportDataMenu>
               </div>
             </div>
 
@@ -228,19 +368,32 @@ function App() {
                 <DataTable
                   className="border-y"
                   columns={[
-                    ...columns,
+                    // get the first 3 columns only
+                    ...shownColumns.slice(0, 3),
                     {
                       header: "Actions",
+                      size: 5,
                       cell({ row }) {
                         return (
-                          <Button
-                            disabled={template == null}
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setCurrentRecordIndex(row.index)}
-                          >
-                            <ArrowRight />
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              disabled={template == null}
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {}}
+                            >
+                              <TagIcon />
+                            </Button>
+
+                            <Button
+                              disabled={template == null}
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setCurrentRecordIndex(row.index)}
+                            >
+                              <ArrowRight />
+                            </Button>
+                          </div>
                         );
                       },
                     },
@@ -250,7 +403,7 @@ function App() {
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-8">
                   <p className="text-muted-foreground text-2xl">
-                    There are no fields added yet.
+                    No data added yet.
                   </p>
 
                   <div className="space-x-2">
@@ -264,7 +417,7 @@ function App() {
                     <ImportDataMenu sources={dataSources}>
                       <Button variant="secondary">
                         <ImportIcon className="mr-2" />
-                        <span>Import</span>
+                        <span>Import Data</span>
                       </Button>
                     </ImportDataMenu>
                   </div>
@@ -289,6 +442,13 @@ function App() {
                 <p className="font-semibold text-sm">Editor</p>
 
                 <div className="space-x flex items-center">
+                  <InstalledPluginsDialog>
+                    <Button size="sm" variant="ghost">
+                      <PlugIcon className="mr-2" />
+                      <span>Plugins</span>
+                    </Button>
+                  </InstalledPluginsDialog>
+
                   <Button
                     size="sm"
                     variant="ghost"
@@ -297,7 +457,7 @@ function App() {
                     }
                   >
                     <UploadIcon className="mr-2" />
-                    <span>Import</span>
+                    <span>Import Template</span>
                   </Button>
 
                   <PrintDialog>
