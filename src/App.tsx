@@ -174,9 +174,14 @@ function App() {
     useShallow((state) => [state.records, state.currentRecord()]),
   );
 
-  const [addRecords, setCurrentRecordIndex] = useRecordsStore(
-    useShallow((state) => [state.addRecords, state.setCurrentRecordIndex]),
-  );
+  const [addRecords, setCurrentRecordIndex, setSelectedRecordIndices] =
+    useRecordsStore(
+      useShallow((state) => [
+        state.addRecords,
+        state.setCurrentRecordIndex,
+        state.setSelectedRecordIndices,
+      ]),
+    );
 
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
 
@@ -355,7 +360,11 @@ function App() {
                 <DataTable
                   className="border-y"
                   onRowSelectionChange={(state) => {
-                    console.log("onRowSelectionChange", state);
+                    const indices = Object.keys(state).map(Number);
+                    if (indices.length === 0) {
+                      return;
+                    }
+                    setSelectedRecordIndices(...indices);
                   }}
                   columns={[
                     {

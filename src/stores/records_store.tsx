@@ -3,12 +3,15 @@ import { create } from "zustand";
 
 export interface RecordsState {
   records: DataRecord[];
+  selectedRecordIndices: number[];
   currentRecordIndex: number;
   addRecords: (...records: DataRecord[]) => void;
   updateRecord: (record: DataRecord) => void;
   removeRecord: (recordKey: string) => void;
   setCurrentRecordIndex: (index: number) => void;
+  setSelectedRecordIndices: (...indices: number[]) => void;
   currentRecord(): DataRecord | null;
+  selectedRecords(): DataRecord[];
 }
 
 const useRecordsStore = create<RecordsState>((set, get) => ({
@@ -66,6 +69,14 @@ const useRecordsStore = create<RecordsState>((set, get) => ({
     }
 
     return records[recordIdx];
+  },
+  selectedRecordIndices: [],
+  setSelectedRecordIndices: (...indices: number[]) => {
+    set({ selectedRecordIndices: indices });
+  },
+  selectedRecords: () => {
+    const indices = get().selectedRecordIndices;
+    return indices.map((index) => get().records[index]);
   },
 }));
 

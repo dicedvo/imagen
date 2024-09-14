@@ -68,7 +68,7 @@ const outputExportSettingsSchema = z.object({
   settings: z.record(z.any()),
 });
 
-function pickRecordsToExport(
+function recordsForExport(
   exportScope: z.infer<typeof outputExportSettingsSchema>["exportScope"],
 ) {
   switch (exportScope) {
@@ -78,8 +78,7 @@ function pickRecordsToExport(
       return [currentRecord];
     }
     case "selected":
-      // TODO: implement selected records
-      return useRecordsStore.getState().records;
+      return useRecordsStore.getState().selectedRecords();
     case "all":
       return useRecordsStore.getState().records;
     default:
@@ -122,7 +121,7 @@ function getPrimaryExportInfo(
   filenameFormat: string,
   exportScope: z.infer<typeof outputExportSettingsSchema>["exportScope"],
 ): ExportInfo[] {
-  const records = pickRecordsToExport(exportScope);
+  const records = recordsForExport(exportScope);
   if (!records) return [];
 
   return records
