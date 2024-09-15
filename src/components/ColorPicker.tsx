@@ -41,6 +41,7 @@ export default function ColorPicker({
 
   useEffect(() => {
     try {
+      if (currentValueHex.length === 0) return;
       setCurrentValue(parseColor(hslValue(currentValueHex)));
     } catch (e) {
       console.error(e);
