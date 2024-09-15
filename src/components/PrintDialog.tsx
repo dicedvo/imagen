@@ -120,7 +120,9 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
 
   return (
     <Dialog open={false}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger disabled asChild>
+        {children}
+      </DialogTrigger>
 
       <DialogContent className="p-0 max-w-6xl">
         <div className="flex">

@@ -1,7 +1,5 @@
-import ExportDialog from "@/components/ExportDialog";
 import InstalledPluginsDialog from "@/components/InstalledPluginsDialog";
 import Preview from "@/components/Preview";
-import PrintDialog from "@/components/PrintDialog";
 import TemplateEditor from "@/components/TemplateEditor";
 import TemplateImportDialog from "@/components/TemplateImportDialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +7,7 @@ import { compileTemplateValues, valuesFromTemplate } from "@/helpers/template";
 import emitter from "@/lib/event-bus";
 import useRecordsStore from "@/stores/records_store";
 import useTemplateStore from "@/stores/template_store";
-import { DownloadIcon, PlugIcon, PrinterIcon, UploadIcon } from "lucide-react";
+import { PlugIcon, UploadIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -103,20 +101,6 @@ export default function WorkArea() {
                 <UploadIcon className="mr-2" />
                 <span>Import Template</span>
               </Button>
-
-              <PrintDialog>
-                <Button size="sm" variant="ghost">
-                  <PrinterIcon className="mr-2" />
-                  <span>Print</span>
-                </Button>
-              </PrintDialog>
-
-              <ExportDialog onSuccess={() => {}}>
-                <Button size="sm" variant="ghost">
-                  <DownloadIcon className="mr-2" />
-                  <span>Export</span>
-                </Button>
-              </ExportDialog>
             </div>
           </div>
 

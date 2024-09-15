@@ -3,6 +3,7 @@ import WorkArea from "@/components/home-page/WorkArea";
 import { loadBasePlugins } from "@/lib/base-plugin-loader";
 import usePluginStore from "@/stores/plugin_store";
 import { useEffect } from "react";
+import Header from "@/components/Header";
 
 function App() {
   const pluginRegistry = usePluginStore();
@@ -13,11 +14,7 @@ function App() {
 
   return (
     <main className="font-sans">
-      <header className="px-4 border-b bg-white">
-        <div className="py-3">
-          <p>DICE ImaGen Tool</p>
-        </div>
-      </header>
+      <Header />
 
       <section className="flex h-screen">
         <div className="w-1/2 border-r flex flex-col">
