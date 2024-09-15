@@ -1,21 +1,20 @@
+import { useImageGeneratorsStore } from "@/stores/registry_store";
+import Konva from "konva";
+import {
+  FinalImageGeneratorValue,
+  ImageGeneratorValue,
+} from "../image_generator";
+import { IRegistry } from "../registries";
+import URIHandler from "../uri_handler";
+import { AssetURIHandler } from "./assets";
+import { emitter as fontLoadEmitter, isItalic, loadFont } from "./fonts";
+import { autoFitText, loadAsyncImage } from "./konva-helpers";
 import {
   ImageGeneratorTemplateElement,
   Template,
   TemplateElement,
   TemplateInstanceValues,
 } from "./types";
-import Konva from "konva";
-import { loadAsyncImage } from "@/helpers/assets";
-import { autoFitText } from "./konva-helpers";
-import { useImageGeneratorsStore } from "@/stores/registry_store";
-import {
-  FinalImageGeneratorValue,
-  ImageGeneratorValue,
-} from "../image_generator";
-import { emitter as fontLoadEmitter, isItalic, loadFont } from "./fonts";
-import { IRegistry } from "../registries";
-import URIHandler from "../uri_handler";
-import { AssetURIHandler } from "./assets";
 
 // Used for deterministic hashing of template content
 function cyrb53(str: string, seed = 0) {
