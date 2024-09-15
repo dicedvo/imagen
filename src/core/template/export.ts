@@ -1,4 +1,3 @@
-import { compileTemplateValues, renderTemplateText } from "@/helpers/template";
 import JSZip from "jszip";
 import Konva from "konva";
 import { DataRecord } from "../data";
@@ -7,6 +6,7 @@ import { IRegistry } from "../registries";
 import URIHandler from "../uri_handler";
 import TemplateRenderer from "./renderer";
 import { Template, TemplateInstanceValues } from "./types";
+import { compileTemplateValues, renderTemplateText } from "./values";
 
 interface ExportInfo {
   filename: string;

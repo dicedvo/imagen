@@ -3,9 +3,13 @@ import Preview from "@/components/Preview";
 import TemplateEditor from "@/components/TemplateEditor";
 import TemplateImportDialog from "@/components/TemplateImportDialog";
 import { Button } from "@/components/ui/button";
-import { compileTemplateValues, valuesFromTemplate } from "@/helpers/template";
+import {
+  compileTemplateValues,
+  valuesFromTemplate,
+} from "@/core/template/values";
 import emitter from "@/lib/event-bus";
 import useRecordsStore from "@/stores/records_store";
+import { useImageGeneratorsStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
 import { PlugIcon, UploadIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -30,6 +34,8 @@ export default function WorkArea() {
     useShallow((state) => state.currentRecord()),
   );
 
+  const imageGenerators = useImageGeneratorsStore();
+
   const editableTemplateInstanceValues = useMemo(() => {
     if (!template) {
       return null;
@@ -43,8 +49,8 @@ export default function WorkArea() {
         return gotValues;
       }
     }
-    return valuesFromTemplate(template);
-  }, [template, currentRecord]);
+    return valuesFromTemplate(template, imageGenerators);
+  }, [template, currentRecord, imageGenerators]);
 
   const previewTemplateInstanceValues = useMemo(() => {
     if (

@@ -31,10 +31,11 @@ import {
 import { DataRecord } from "@/core/data";
 import { exportRecords } from "@/core/template/export";
 import { Template } from "@/core/template/types";
-import { valuesFromTemplate } from "@/helpers/template";
+import { valuesFromTemplate } from "@/core/template/values";
 import { outputExportSettingsSchema } from "@/schemas/OutputExportSettingsSchema";
 import useRecordsStore from "@/stores/records_store";
 import {
+  useImageGeneratorsStore,
   useOutputExporterStore,
   useUriHandlersStore,
 } from "@/stores/registry_store";
@@ -86,7 +87,7 @@ function getRawTemplateInstanceValue(
     return templateInstanceValues;
   }
 
-  return valuesFromTemplate(template);
+  return valuesFromTemplate(template, useImageGeneratorsStore.getState());
 }
 
 export default function ExportDialog({

@@ -15,7 +15,7 @@ import { Form } from "./ui/form";
 import { useImageGeneratorsStore } from "@/stores/registry_store";
 import { ImageGeneratorValue } from "@/core/image_generator";
 import { TemplateElement } from "@/core/template/types";
-import { compileTemplateValues } from "@/helpers/template";
+import { compileTemplateValues } from "@/core/template/values";
 import useRecordsStore from "@/stores/records_store";
 
 const formSettingsSchema = z.record(z.unknown());

@@ -68,3 +68,8 @@ export type GroupedTemplateElement = BaseTemplateElement & {
   value: never;
   children: TemplateElement[];
 };
+
+export const editableElementTypes: Record<string, boolean> = {
+  image_generator: true,
+  text: true,
+};

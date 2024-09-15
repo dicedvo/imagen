@@ -1,10 +1,13 @@
-import { Template, TemplateInstanceValues } from "@/core/template/types";
 import TemplateRenderer from "@/core/template/renderer";
-import { valuesFromTemplate } from "@/helpers/template";
+import { Template, TemplateInstanceValues } from "@/core/template/types";
+import { valuesFromTemplate } from "@/core/template/values";
+import {
+  useImageGeneratorsStore,
+  useUriHandlersStore,
+} from "@/stores/registry_store";
 import Konva from "konva";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Stage as KStage, Layer as KLayer, Rect as KRect } from "react-konva";
-import { useUriHandlersStore } from "@/stores/registry_store";
+import { Layer as KLayer, Rect as KRect, Stage as KStage } from "react-konva";
 
 const SCALE_PADDING = 0.05;
 
@@ -17,6 +20,7 @@ export default function Preview({
   values: TemplateInstanceValues | null;
 }) {
   const uriHandlerStore = useUriHandlersStore();
+  const imageGeneratorsStore = useImageGeneratorsStore();
 
   const [renderState, setRenderState] = useState<
     "unloaded" | "loading" | "done"
@@ -98,10 +102,19 @@ export default function Preview({
 
     console.log("rendering...");
     setRenderState("loading");
-    templateRenderer.render(template, values ?? valuesFromTemplate(template));
+    templateRenderer.render(
+      template,
+      values ?? valuesFromTemplate(template, imageGeneratorsStore),
+    );
     resizeScale();
     setRenderState("done");
-  }, [template, templateRenderer, uriHandlerStore, values]);
+  }, [
+    template,
+    templateRenderer,
+    uriHandlerStore,
+    imageGeneratorsStore,
+    values,
+  ]);
 
   useEffect(() => {
     console.log("renderState", renderState);

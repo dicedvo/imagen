@@ -1,6 +1,11 @@
-import { Template, TemplateInstanceValues } from "@/core/template/types";
-import { useImageGeneratorsStore } from "@/stores/registry_store";
+import {
+  editableElementTypes,
+  Template,
+  TemplateInstanceValues,
+} from "@/core/template/types";
 import { Liquid } from "liquidjs";
+import { IRegistry } from "@/core/registries";
+import ImageGenerator from "@/core/image_generator";
 
 const engine = new Liquid();
 
@@ -36,29 +41,28 @@ export function compileTemplateValues(
   return compiledValues;
 }
 
-export const editableElementTypes: Record<string, boolean> = {
-  image_generator: true,
-  text: true,
-};
-
-export function valuesFromTemplate(template: Template) {
+export function valuesFromTemplate(
+  template: Template,
+  imageGenerators: IRegistry<ImageGenerator>,
+) {
   const data = template.elements
     .filter((te) => editableElementTypes[te.type] || te.type === "group")
     .reduce<TemplateInstanceValues>((pv, cv, idx) => {
       const key = cv.id ?? cv.name ?? `field_${idx}`;
       if (cv.type === "image_generator") {
-        const generator = useImageGeneratorsStore
-          .getState()
-          .get(cv.generator as string);
+        const generator = imageGenerators.get(cv.generator);
         pv[key] = {
           ...(cv.value ?? generator?.defaultOptions() ?? {}),
           outputUri: "",
         };
       } else if (cv.type === "group") {
-        pv[key] = valuesFromTemplate({
-          ...template,
-          elements: cv.children,
-        });
+        pv[key] = valuesFromTemplate(
+          {
+            ...template,
+            elements: cv.children,
+          },
+          imageGenerators,
+        );
       } else {
         pv[key] = cv.value;
       }

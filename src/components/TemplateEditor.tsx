@@ -1,8 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Fragment, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { cn } from "@/lib/utils";
+import TemplateElementFieldRenderer from "@/components/TemplateElementRenderer";
 import {
   Form,
   FormControl,
@@ -10,10 +6,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "./ui/form";
-import { Template, TemplateInstanceValues } from "@/core/template/types";
-import TemplateElementFieldRenderer from "./TemplateElementRenderer";
-import { editableElementTypes } from "@/helpers/template";
+} from "@/components/ui/form";
+import {
+  editableElementTypes,
+  Template,
+  TemplateInstanceValues,
+} from "@/core/template/types";
+import { cn } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Fragment, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const templateEditorSchema = z.record(z.unknown());
 
