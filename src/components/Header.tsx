@@ -7,7 +7,7 @@ export default function Header() {
   return (
     <header className="flex items-center border-b bg-white">
       <div className="py-3 px-4 border-r flex items-center space-x-2">
-        <img src="/icon.png" alt="logo" className="h-6" />
+        <img src="./icon.png" alt="logo" className="h-6" />
         <p className="font-bold">
           ImaGen{" "}
           <span className="text-xs font-normal bg-blue-500 text-white rounded-full px-1.5 py-0.5">
