@@ -45,17 +45,20 @@ const useTagsStore = create<TagState>((set) => {
         searchIndex.addAll(newTags);
         return { tags: [...state.tags, ...newTags] };
       }),
-    removeTags: (tags) =>
+    removeTags: (...tagNames) =>
       set((state) => {
-        const newTags = state.tags;
+        const newTags = [...state.tags];
 
-        for (const tag of tags) {
-          const tagIndex = newTags.findIndex((t) => t.name === tag);
-          if (tagIndex !== -1) {
-            const oldTag = newTags[tagIndex];
-            searchIndex.remove(oldTag);
-            newTags.splice(tagIndex, 1);
+        for (const tagName of tagNames) {
+          const tagIndex = newTags.findIndex((t) => t.name === tagName);
+          console.log(tagName, tagIndex);
+          if (tagIndex === -1) {
+            continue;
           }
+
+          const oldTag = newTags[tagIndex];
+          searchIndex.remove(oldTag);
+          newTags.splice(tagIndex, 1);
         }
 
         return { tags: newTags };

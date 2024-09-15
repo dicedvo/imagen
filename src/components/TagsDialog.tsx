@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import useTagsStore, { Tag } from "@/stores/tags_store";
 import { Button } from "@/components/ui/button";
-import { EditIcon, PlusIcon } from "lucide-react";
+import { EditIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -170,8 +170,8 @@ function TagEditorDialog({
 
 export default function TagsDialog({ children }: { children: ReactNode }) {
   const tags = useTagsStore((state) => state.tags);
-  const [updateTag, addTags] = useTagsStore(
-    useShallow((state) => [state.updateTag, state.addTags]),
+  const [updateTag, addTags, removeTags] = useTagsStore(
+    useShallow((state) => [state.updateTag, state.addTags, state.removeTags]),
   );
 
   const handleOnSave = (tagName: string | null, tag: Tag) => {
@@ -189,7 +189,7 @@ export default function TagsDialog({ children }: { children: ReactNode }) {
       <DialogContent>
         <DialogTitle>Tags</DialogTitle>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col divide-y">
           {tags.length === 0 ? (
             <div className="py-24 flex flex-col items-center space-y-2">
               <p>There are no tags yet.</p>
@@ -205,16 +205,28 @@ export default function TagsDialog({ children }: { children: ReactNode }) {
               {tags.map((tag) => (
                 <div
                   key={`tag_${tag.name}`}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between py-4"
                 >
                   <TagDisplay tag={tag} />
 
-                  <TagEditorDialog tag={tag} onSave={handleOnSave}>
-                    <Button size="sm" className="flex items-center space-x-2">
-                      <EditIcon size={12} />
-                      <span>Edit</span>
+                  <div className="space-x-2 flex items-center">
+                    <TagEditorDialog tag={tag} onSave={handleOnSave}>
+                      <Button size="sm" className="flex items-center space-x-2">
+                        <EditIcon size={12} />
+                        <span>Edit</span>
+                      </Button>
+                    </TagEditorDialog>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex items-center"
+                      onClick={() => removeTags(tag.name)}
+                    >
+                      <TrashIcon className="mr-2" size={12} />
+                      <span>Delete</span>
                     </Button>
-                  </TagEditorDialog>
+                  </div>
                 </div>
               ))}
 
