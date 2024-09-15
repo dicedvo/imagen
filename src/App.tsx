@@ -49,10 +49,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./components/ui/dropdown-menu";
-import { Checkbox } from "./components/ui/checkbox";
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import SearchBox from "@/components/SearchBox";
+import { Filter } from "@nedpals/pbf";
+import TagsDialog from "./components/TagsDialog";
+import useTagsStore from "./stores/tags_store";
+import TagDisplay from "./components/TagDisplay";
 
-function determineColumns(fields: Field[]): ColumnDef<unknown, DataRecord>[] {
+function determineColumns(
+  fields: Field[],
+): ColumnDef<Partial<DataRecord>, DataRecord>[] {
   if (fields.length === 0) {
     return [];
   }
@@ -63,7 +70,7 @@ function determineColumns(fields: Field[]): ColumnDef<unknown, DataRecord>[] {
   }));
 }
 
-function ColumnsDropdown({
+function ColumnsDropdown<TData = unknown, TValue = unknown>({
   children,
   columns,
   value: columnsToShow,
@@ -71,7 +78,7 @@ function ColumnsDropdown({
 }: {
   value: string[];
   children: ReactNode;
-  columns: ColumnDef<unknown, DataRecord>[];
+  columns: ColumnDef<TData, TValue>[];
   onChange: (columnKeys: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -86,7 +93,11 @@ function ColumnsDropdown({
   useEffect(() => {
     const firstThreeCols = columns
       .filter((c) => "accessorKey" in c)
-      .map((c) => c.accessorKey)
+      .map((c) =>
+        typeof c.accessorKey === "string"
+          ? c.accessorKey
+          : c.accessorKey.toString(),
+      )
       .slice(0, 3);
 
     setColumnsToShow(firstThreeCols);
@@ -127,34 +138,86 @@ function ColumnsDropdown({
         <DropdownMenuSeparator />
         {columns
           .filter((c) => "accessorKey" in c)
-          .map((c) => (
-            <DropdownMenuCheckboxItem
-              key={`column-${c.accessorKey}`}
-              checked={columnsToShow.includes(c.accessorKey)}
-              onSelect={(ev) => {
-                ev.preventDefault();
-              }}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setColumnsToShow([...columnsToShow, c.accessorKey]);
-                } else {
-                  setColumnsToShow(
-                    columnsToShow.filter((k) => k !== c.accessorKey),
-                  );
-                }
+          .map((c) => {
+            const accessorKey =
+              typeof c.accessorKey === "string"
+                ? c.accessorKey
+                : c.accessorKey.toString();
 
-                recordSelected(c.accessorKey);
-              }}
-            >
-              {typeof c.header === "string" ? c.header : c.accessorKey}
-            </DropdownMenuCheckboxItem>
-          ))}
+            return (
+              <DropdownMenuCheckboxItem
+                key={`column-${accessorKey}`}
+                checked={columnsToShow.includes(accessorKey)}
+                onSelect={(ev) => {
+                  ev.preventDefault();
+                }}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setColumnsToShow([...columnsToShow, accessorKey]);
+                  } else {
+                    setColumnsToShow(
+                      columnsToShow.filter((k) => k !== accessorKey),
+                    );
+                  }
+
+                  recordSelected(accessorKey);
+                }}
+              >
+                {typeof c.header === "string" ? c.header : accessorKey}
+              </DropdownMenuCheckboxItem>
+            );
+          })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function TagsDropdown({
+  children,
+  value,
+  onChange,
+}: {
+  value: string[];
+  children: ReactNode;
+  onChange: (columnKeys: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const tags = useTagsStore((state) => state.tags);
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+
+      <DropdownMenuContent className="w-56" align="start">
+        <DropdownMenuLabel>Tagged as</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {tags.map((tag) => (
+          <DropdownMenuCheckboxItem
+            key={`tag-${tag.name}`}
+            checked={value.includes(tag.name)}
+            onSelect={(ev) => {
+              ev.preventDefault();
+            }}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                onChange([...value, tag.name]);
+              } else {
+                onChange(value.filter((k) => k !== tag.name));
+              }
+            }}
+          >
+            <TagDisplay tag={tag} />
+          </DropdownMenuCheckboxItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 function App() {
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   const template = useTemplateStore((state) => state.template);
   const templateInstanceValues = useTemplateStore(
     useShallow((state) => state.templateInstanceValues),
@@ -185,12 +248,14 @@ function App() {
   const [
     addRecords,
     removeRecord,
+    updateRecord,
     setCurrentRecordIndex,
     setSelectedRecordIndices,
   ] = useRecordsStore(
     useShallow((state) => [
       state.addRecords,
       state.removeRecord,
+      state.updateRecord,
       state.setCurrentRecordIndex,
       state.setSelectedRecordIndices,
     ]),
@@ -208,7 +273,13 @@ function App() {
       return columns;
     }
     return columns.filter(
-      (c) => "accessorKey" in c && columnsToShow.includes(c.accessorKey),
+      (c) =>
+        "accessorKey" in c &&
+        columnsToShow.includes(
+          typeof c.accessorKey === "string"
+            ? c.accessorKey
+            : c.accessorKey.toString(),
+        ),
     );
   }, [columns, columnsToShow]);
 
@@ -336,10 +407,12 @@ function App() {
                   </Button>
                 </ColumnsDropdown>
 
-                <Button size="sm" variant="ghost">
-                  <TagsIcon className="mr-2" size={16} />
-                  <span>Tags</span>
-                </Button>
+                <TagsDialog>
+                  <Button size="sm" variant="ghost">
+                    <TagsIcon className="mr-2" size={16} />
+                    <span>Tags</span>
+                  </Button>
+                </TagsDialog>
 
                 <ManageFieldsDialog>
                   <Button size="sm" variant="ghost">
@@ -415,9 +488,25 @@ function App() {
                 </div>
               )}
 
+              <div className="border-y">
+                <SearchBox
+                  value={{
+                    filters: filters,
+                    query: searchQuery,
+                  }}
+                  onChange={({ filters, query }) => {
+                    console.log(filters, query);
+
+                    setFilters(filters);
+                    setSearchQuery(query);
+                  }}
+                />
+              </div>
+
               {fields.length !== 0 ? (
                 <DataTable
                   className="border-y"
+                  data={records}
                   rowSelection={selectedRecordIndices
                     .map((idx) => idx)
                     .reduce((pv, cv) => ({ ...pv, [cv]: true }), {})}
@@ -465,14 +554,19 @@ function App() {
                       cell({ row }) {
                         return (
                           <div className="flex items-center space-x-1">
-                            <Button
-                              disabled={template == null}
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {}}
+                            <TagsDropdown
+                              value={row.original.__tags ?? []}
+                              onChange={(newTags) => {
+                                updateRecord({
+                                  ...row.original,
+                                  __tags: newTags,
+                                });
+                              }}
                             >
-                              <TagIcon size={20} />
-                            </Button>
+                              <Button size="sm" variant="ghost">
+                                <TagIcon size={20} />
+                              </Button>
+                            </TagsDropdown>
 
                             <Button
                               disabled={template == null}
@@ -487,7 +581,6 @@ function App() {
                       },
                     },
                   ]}
-                  data={records}
                 />
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-8">

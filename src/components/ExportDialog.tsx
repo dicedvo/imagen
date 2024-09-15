@@ -49,6 +49,8 @@ import { Template, TemplateInstanceValues } from "@/core/template/types";
 import Konva from "konva";
 import TemplateRenderer from "@/core/template/renderer";
 import JSZip from "jszip";
+import useTagsStore from "@/stores/tags_store";
+import TagDisplay from "./TagDisplay";
 
 // Export Scope
 // - current: export the current record
@@ -82,8 +84,15 @@ function recordsForExport(
     case "all":
       return useRecordsStore.getState().records;
     default:
-      // TODO: implement tagged records
-      // const tag = exportScope.replace(/^tagged:/, "");
+      if (exportScope.startsWith("tagged:")) {
+        const tag = decodeURIComponent(exportScope.replace(/^tagged:/, ""));
+        const taggedRecords = useRecordsStore
+          .getState()
+          .records.filter((record) => {
+            return record.__tags && record.__tags.indexOf(tag) !== -1;
+          });
+        return taggedRecords;
+      }
       return useRecordsStore.getState().records;
   }
 }
@@ -229,8 +238,7 @@ export default function ExportDialog({
 }) {
   const [open, setOpen] = useState(false);
 
-  // TODO: replace with actual tags from the database
-  const tags = ["ready_for_print", "for_web", "for_email"];
+  const tags = useTagsStore(useShallow((state) => state.tags));
 
   const [outputExporters, getExporter] = useOutputExporterStore(
     useShallow((state) => [state.items, state.get]),
@@ -344,8 +352,11 @@ export default function ExportDialog({
                           <SelectGroup>
                             <SelectLabel>Records tagged with</SelectLabel>
                             {tags.map((tag) => (
-                              <SelectItem key={tag} value={`tagged:${tag}`}>
-                                {tag}
+                              <SelectItem
+                                key={`tag_${tag.name}`}
+                                value={`tagged:${encodeURIComponent(tag.name)}`}
+                              >
+                                <TagDisplay tag={tag} />
                               </SelectItem>
                             ))}
                           </SelectGroup>
