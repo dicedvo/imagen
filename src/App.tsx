@@ -306,7 +306,9 @@ function TagsDropdown({
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+      <DropdownMenuTrigger disabled={tags.length === 0} asChild>
+        {children}
+      </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-56" align="start">
         <DropdownMenuLabel>Tagged as</DropdownMenuLabel>
