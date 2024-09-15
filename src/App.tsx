@@ -1,9 +1,9 @@
+import Header from "@/components/Header";
 import DataList from "@/components/home-page/DataList";
 import WorkArea from "@/components/home-page/WorkArea";
-import { loadBasePlugins } from "@/lib/base-plugin-loader";
+import { loadBasePlugins } from "@/core/base_plugins";
 import usePluginStore from "@/stores/plugin_store";
 import { useEffect } from "react";
-import Header from "@/components/Header";
 
 function App() {
   const pluginRegistry = usePluginStore();
