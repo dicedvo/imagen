@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import TagDisplay from "@/components/TagDisplay";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -7,15 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "./ui/dialog";
-import { Button } from "./ui/button";
-import {
-  useOutputExporterStore,
-  useUriHandlersStore,
-} from "@/stores/registry_store";
-import { useShallow } from "zustand/react/shallow";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -24,8 +17,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "./ui/form";
-import { zodResolver } from "@hookform/resolvers/zod";
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,41 +27,24 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
-import { Input } from "./ui/input";
-import { _OutputExporter } from "@/core/output_exporter";
-import useRecordsStore from "@/stores/records_store";
-import useTemplateStore from "@/stores/template_store";
+} from "@/components/ui/select";
 import { DataRecord } from "@/core/data";
+import { exportRecords } from "@/core/template/export";
+import { Template } from "@/core/template/types";
+import { valuesFromTemplate } from "@/helpers/template";
+import { outputExportSettingsSchema } from "@/schemas/OutputExportSettingsSchema";
+import useRecordsStore from "@/stores/records_store";
 import {
-  compileTemplateValues,
-  renderTemplateText,
-  valuesFromTemplate,
-} from "@/helpers/template";
-import { Template, TemplateInstanceValues } from "@/core/template/types";
-import Konva from "konva";
-import TemplateRenderer from "@/core/template/renderer";
-import JSZip from "jszip";
+  useOutputExporterStore,
+  useUriHandlersStore,
+} from "@/stores/registry_store";
 import useTagsStore from "@/stores/tags_store";
-import TagDisplay from "./TagDisplay";
-
-// Export Scope
-// - current: export the current record
-// - selected: export the selected records
-// - tagged: export the tagged records
-// - all: export all records
-export const exportScope = z.enum(["current", "selected", "all"]);
-export const taggedExportScope = z
-  .string()
-  .startsWith("tagged:")
-  .and(z.custom<`tagged:${string}`>());
-
-const outputExportSettingsSchema = z.object({
-  exporterId: z.string(),
-  exportScope: exportScope.or(taggedExportScope),
-  filenameFormat: z.string(),
-  settings: z.record(z.any()),
-});
+import useTemplateStore from "@/stores/template_store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useShallow } from "zustand/react/shallow";
 
 function getRecordsForExport(
   exportScope: z.infer<typeof outputExportSettingsSchema>["exportScope"],
@@ -111,118 +87,6 @@ function getRawTemplateInstanceValue(
   }
 
   return valuesFromTemplate(template);
-}
-
-interface ExportInfo {
-  filename: string;
-  values: TemplateInstanceValues;
-  width: number; // TODO: replace width with the opts.width setting
-  height: number; // TODO: replace height with the opts.height setting
-}
-
-interface ExportItem {
-  filename: string;
-  content: Blob;
-}
-
-function getPrimaryExportInfo(
-  template: Template,
-  filenameFormat: string,
-  records: DataRecord[],
-): ExportInfo[] {
-  return records
-    .map((record) => {
-      const rawValues = getRawTemplateInstanceValue(template, record);
-      if (!rawValues) return null;
-      return {
-        filename: renderTemplateText(filenameFormat, record),
-        values: compileTemplateValues(rawValues, record),
-        width: template.settings.canvas_width,
-        height: template.settings.canvas_height,
-      };
-    })
-    .filter(Boolean) as ExportInfo[];
-}
-
-async function exportRecords(
-  _exporter: _OutputExporter,
-  template: Template | null,
-  recordsToExport: DataRecord[],
-  opts: z.infer<typeof outputExportSettingsSchema>,
-) {
-  if (!template) {
-    throw new Error("No template loaded");
-  }
-
-  const toBeExported = getPrimaryExportInfo(
-    template,
-    opts.filenameFormat,
-    recordsToExport,
-  );
-  if (toBeExported.length === 0) {
-    throw new Error("No records to export");
-  }
-
-  const fakeCanvas = document.createElement("div");
-  const stage = new Konva.Stage({
-    container: fakeCanvas,
-    width: 0,
-    height: 0,
-  });
-
-  const outputLayer = new Konva.Layer();
-  stage.add(outputLayer);
-
-  const renderer = new TemplateRenderer(
-    outputLayer,
-    useUriHandlersStore.getState(),
-  );
-  renderer.setWaitForAssetLoad(true);
-
-  const exporter =
-    typeof _exporter === "object" ? _exporter : _exporter(renderer);
-  const exports: ExportItem[] = [];
-
-  for (const { values, filename } of toBeExported) {
-    const output = await exporter.export(template, values, opts.settings);
-
-    if ("url" in output) {
-      const outputResponse = await fetch(output.url);
-      const outputBlob = await outputResponse.blob();
-
-      exports.push({
-        filename,
-        content: outputBlob,
-      });
-    } else {
-      exports.push({
-        filename,
-        content: output.blob,
-      });
-    }
-  }
-
-  // outputLayer.destroy();
-  // stage.destroy();
-
-  if (exports.length === 1) {
-    const [exported] = exports;
-    return {
-      filename: exported.filename,
-      url: URL.createObjectURL(exported.content),
-    };
-  } else {
-    const zip = new JSZip();
-    for (const { filename, content } of exports) {
-      zip.file(filename, content);
-    }
-
-    const blob = await zip.generateAsync({ type: "blob" });
-    return {
-      filename: "export.zip",
-      url: URL.createObjectURL(blob),
-    };
-  }
 }
 
 export default function ExportDialog({
@@ -403,12 +267,15 @@ export default function ExportDialog({
           <Button
             onClick={() => {
               if (!currentExporter) return;
-              exportRecords(
-                currentExporter,
+              exportRecords({
+                exporter: currentExporter,
                 template,
-                recordsForExport,
-                form.getValues(),
-              ).then(({ filename, url }) => {
+                records: recordsForExport,
+                filenameFormat: form.getValues().filenameFormat,
+                exporterOptions: form.getValues().settings,
+                onGetRawTemplateInstanceValue: getRawTemplateInstanceValue,
+                uriHandlersRegistry: useUriHandlersStore.getState(),
+              }).then(({ filename, url }) => {
                 const a = document.createElement("a");
                 a.href = url;
                 a.download = filename;

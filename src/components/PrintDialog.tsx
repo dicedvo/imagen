@@ -1,5 +1,6 @@
-import { z } from "zod";
-import { Button } from "./ui/button";
+import PrintPreviewer from "@/components/PrintPreviewer";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -7,10 +8,7 @@ import {
   DialogFooter,
   DialogTitle,
   DialogTrigger,
-} from "./ui/dialog";
-import { exportScope, taggedExportScope } from "./ExportDialog";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -18,7 +16,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "./ui/form";
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,11 +26,15 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
-import { Checkbox } from "./ui/checkbox";
+} from "@/components/ui/select";
+import {
+  exportScope,
+  taggedExportScope,
+} from "@/schemas/OutputExportSettingsSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { ReactNode, useState } from "react";
-import { Input } from "./ui/input";
-import PrintPreviewer from "./PrintPreviewer";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const PaperConfigurationSchema = z.object({
   label: z.string().optional(),
