@@ -18,13 +18,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataRecord, DataSource } from "@/core/data";
-import { Field } from "@/schemas/FieldSchema";
+import emitter from "@/lib/event-bus";
+import { Field, stringToField } from "@/schemas/FieldSchema";
 import useFieldsStore from "@/stores/fields_store";
-import useRecordsStore, { useRecordsSearchIndex } from "@/stores/records_store";
+import useRecordsStore, {
+  RECORDS_SEARCH_KEY,
+  useRecordsSearchIndex,
+} from "@/stores/records_store";
 import {
   useDataProcessorStore,
   useDataSourceStore,
 } from "@/stores/registry_store";
+import useSearchStore from "@/stores/search_store";
 import useTagsStore from "@/stores/tags_store";
 import useTemplateStore from "@/stores/template_store";
 import { Filter } from "@nedpals/pbf";
@@ -44,6 +49,7 @@ import {
 } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import MapFieldsDialog from "../MapFieldsDialog";
 
 function determineColumns(
   fields: Field[],
@@ -450,17 +456,15 @@ function DataView({
   );
 }
 
-export default function DataList({
-  onImportFinished,
-}: {
-  onImportFinished: (payload: { data: DataRecord[] }) => void;
-}) {
+export default function DataList() {
   const [filters, setFilters] = useState<Filter[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const recordsSearchIndex = useRecordsSearchIndex();
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
 
-  const fields = useFieldsStore(useShallow((state) => state.fields));
+  const [fields, addFields] = useFieldsStore(
+    useShallow((state) => [state.fields, state.addFields]),
+  );
   const records = useRecordsStore(useShallow((state) => state.records));
 
   const dataSources = useDataSourceStore((state) => state.items);
@@ -509,6 +513,59 @@ export default function DataList({
       filters,
     );
   }, [records, filters, searchQuery]);
+
+  const [columnsToMap, setColumnsToMap] = useState<string[]>([]);
+  const [dataToImport, setDataToImport] = useState<DataRecord[]>([]);
+
+  const handleImportFinished = ({ data }: { data: DataRecord[] }) => {
+    const forMap: Record<string, boolean> = {};
+    const existingFields = fields
+      .map((f) => f.key)
+      .reduce<Record<string, boolean>>((pv, cv) => {
+        pv[cv] = true;
+        return pv;
+      }, {});
+
+    for (const record of data) {
+      for (const fieldName in record) {
+        if (
+          fieldName === "__id" ||
+          existingFields[fieldName] ||
+          forMap[fieldName]
+        ) {
+          continue;
+        }
+        forMap[fieldName] = true;
+      }
+    }
+
+    let shouldMap = true;
+    if (Object.keys(forMap).length === 0 || fields.length === 0) {
+      shouldMap = false;
+    }
+
+    if (shouldMap) {
+      setColumnsToMap(Object.keys(forMap));
+      setDataToImport(data);
+    } else {
+      addRecords(...data);
+      addFields(...stringToField(Object.keys(forMap)));
+    }
+  };
+
+  useEffect(() => {
+    emitter.on("onImportFinished", handleImportFinished);
+
+    // MiniSearch does not support adding/removing fields to index
+    // so we need to reinitialize the search instance
+    useSearchStore.reinitializeSearchInstance(RECORDS_SEARCH_KEY, {
+      fields: ["__id", ...fields.map((f) => f.key)],
+    });
+
+    return () => {
+      emitter.off("onImportFinished", handleImportFinished);
+    };
+  }, [fields]);
 
   return (
     <>
@@ -622,6 +679,38 @@ export default function DataList({
         </div>
       </div>
 
+      <MapFieldsDialog
+        open={columnsToMap.length > 0}
+        onOpenChange={() => {}}
+        columns={columnsToMap}
+        existingFields={fields}
+        onSuccess={(mappings) => {
+          // Create fields first
+          const fieldsToCreate = Object.entries(mappings)
+            .filter((en) => en[1] === "--create--")
+            .map((en) => en[0]);
+          addFields(...stringToField(fieldsToCreate));
+
+          // Now map the entries
+          addRecords(
+            ...dataToImport.map((record) => {
+              const newRecord: DataRecord = { __id: "" };
+              for (const oldField in record) {
+                const newField =
+                  mappings[oldField] !== "--create--"
+                    ? mappings[oldField]
+                    : oldField;
+                newRecord[newField] = record[oldField];
+              }
+              return newRecord;
+            }),
+          );
+
+          setDataToImport([]);
+          setColumnsToMap([]);
+        }}
+      />
+
       {dataSources
         .filter((source) => source.preElement)
         .map((source) => {
@@ -629,7 +718,7 @@ export default function DataList({
           return (
             <DataSourcePreElement
               processors={dataProcessors}
-              onImportFinished={onImportFinished}
+              onImportFinished={handleImportFinished}
               key={`importer_${source.id}`}
             />
           );
