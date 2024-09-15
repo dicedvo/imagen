@@ -12,7 +12,10 @@ import { DataRecord } from "@/core/data";
 import { Field, stringToField } from "@/schemas/FieldSchema";
 import useFieldsStore from "@/stores/fields_store";
 import usePluginStore from "@/stores/plugin_store";
-import useRecordsStore from "@/stores/records_store";
+import useRecordsStore, {
+  RECORDS_SEARCH_KEY,
+  useRecordsSearchIndex,
+} from "@/stores/records_store";
 import useTemplateStore from "@/stores/template_store";
 import { ColumnDef } from "@tanstack/react-table";
 import {
@@ -56,6 +59,7 @@ import { Filter } from "@nedpals/pbf";
 import TagsDialog from "./components/TagsDialog";
 import useTagsStore from "./stores/tags_store";
 import TagDisplay from "./components/TagDisplay";
+import useSearchStore from "./stores/search_store";
 
 function determineColumns(
   fields: Field[],
@@ -261,6 +265,7 @@ function App() {
     ]),
   );
 
+  const recordsSearchIndex = useRecordsSearchIndex();
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
 
   const columns = useMemo(
@@ -366,12 +371,28 @@ function App() {
   const dataProcessors = useDataProcessorStore((state) => state.items);
   const pluginRegistry = usePluginStore();
 
+  const foundRecords = useMemo(() => {
+    if (searchQuery.length === 0) {
+      return records;
+    }
+
+    const results = recordsSearchIndex.search(searchQuery).map((r) => r.id);
+    return records.filter((r) => results.includes(r.__id));
+  }, [records, searchQuery]);
+
   useEffect(() => {
     loadBasePlugins(pluginRegistry.load);
   }, []);
 
   useEffect(() => {
     emitter.on("onImportFinished", handleImportFinished);
+
+    // MiniSearch does not support adding/removing fields to index
+    // so we need to reinitialize the search instance
+    useSearchStore.reinitializeSearchInstance(RECORDS_SEARCH_KEY, {
+      fields: ["__id", ...fields.map((f) => f.key)],
+    });
+
     return () => {
       emitter.off("onImportFinished", handleImportFinished);
     };
@@ -476,7 +497,7 @@ function App() {
                       variant="ghost"
                       onClick={() => {
                         for (const record of selectedRecords) {
-                          removeRecord(record.__id!);
+                          removeRecord(record.__id);
                         }
                         setSelectedRecordIndices();
                       }}
@@ -504,7 +525,7 @@ function App() {
               {fields.length !== 0 ? (
                 <DataTable
                   className="border-y"
-                  data={records}
+                  data={foundRecords}
                   rowSelection={selectedRecordIndices
                     .map((idx) => idx)
                     .reduce((pv, cv) => ({ ...pv, [cv]: true }), {})}
@@ -556,7 +577,7 @@ function App() {
                               value={row.original.__tags ?? []}
                               onChange={(newTags) => {
                                 updateRecord({
-                                  ...row.original,
+                                  ...(row.original as DataRecord),
                                   __tags: newTags,
                                 });
                               }}
@@ -693,7 +714,7 @@ function App() {
           // Now map the entries
           addRecords(
             ...dataToImport.map((record) => {
-              const newRecord: DataRecord = {};
+              const newRecord: DataRecord = { __id: "" };
               for (const oldField in record) {
                 const newField =
                   mappings[oldField] !== "--create--"

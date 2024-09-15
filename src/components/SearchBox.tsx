@@ -7,8 +7,7 @@ import {
 import { SearchIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
-import { useMiniSearch } from "react-minisearch";
-import useTagsStore from "@/stores/tags_store";
+import useTagsStore, { Tag, useTagsSearchIndex } from "@/stores/tags_store";
 import { useShallow } from "zustand/react/shallow";
 import TagDisplay from "./TagDisplay";
 
@@ -32,21 +31,19 @@ export default function SearchBox({
   const [containerWidth, setContainerWidth] = useState(0);
 
   const tags = useTagsStore(useShallow((state) => state.tags));
-
-  const tagsSearch = useMiniSearch(tags, {
-    fields: ["name"],
-    idField: "name",
-  });
+  const tagsSearch = useTagsSearchIndex();
 
   const searchResults = useMemo(() => {
     if (!query) {
       return null;
     }
 
+    const results = tagsSearch.search(query);
+
     return {
-      tags: tagsSearch.searchResults ?? [],
+      tags: results as unknown[] as Tag[],
     };
-  }, [tagsSearch, query]);
+  }, [query]);
 
   const produce = (newFilters: Filter[] | null, newQuery: string | null) => {
     onChange({
@@ -94,15 +91,6 @@ export default function SearchBox({
       window.removeEventListener("resize", handleResizeSearchbarContainer);
     };
   }, []);
-
-  useEffect(() => {
-    tagsSearch.removeAll();
-    tagsSearch.addAll(tags);
-  }, [tags]);
-
-  useEffect(() => {
-    tagsSearch.search(query);
-  }, [query]);
 
   return (
     <>

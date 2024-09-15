@@ -29,7 +29,7 @@ export default function DataRecordEditor({
 }) {
   const form = useForm<z.infer<typeof dataRecordSchema>>({
     resolver: zodResolver(dataRecordSchema),
-    defaultValues: record ?? {},
+    defaultValues: record ?? { __id: "" },
     mode: "onChange",
   });
 
@@ -41,10 +41,13 @@ export default function DataRecordEditor({
       form.reset(
         Object.values(fields)
           .map((field) => field.key)
-          .reduce<DataRecord>((pv, cv) => {
-            pv[cv] = "";
-            return pv;
-          }, {}),
+          .reduce<DataRecord>(
+            (pv, cv) => {
+              pv[cv] = "";
+              return pv;
+            },
+            { __id: "" },
+          ),
       );
     } else {
       form.reset(record);
@@ -61,7 +64,7 @@ export default function DataRecordEditor({
         // console.log(record, form.getValues(), deepEqual(record, form.getValues()));
         return;
       }
-      onChange(form.getValues());
+      onChange(form.getValues() as DataRecord);
     } catch (e) {
       console.error(e);
     }

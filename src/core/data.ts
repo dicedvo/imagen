@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 export type SourceInput = File | string;
 
 export type DataRecord = {
-  __id?: string;
+  __id: string;
   __tags?: string[];
   [key: string]: unknown;
 };
