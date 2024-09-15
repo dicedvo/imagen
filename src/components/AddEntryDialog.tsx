@@ -19,7 +19,7 @@ export default function AddEntryDialog({
   onSuccess: (data: DataRecord) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [record, setRecord] = useState<DataRecord>({});
+  const [record, setRecord] = useState<DataRecord>({ __id: "" });
 
   const handleSubmit = (data: DataRecord) => {
     onSuccess(data);
