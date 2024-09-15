@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import ColorPicker from "@/components/ColorPicker";
 import { useShallow } from "zustand/react/shallow";
 import TagDisplay from "./TagDisplay";
+import { cn } from "@/lib/utils";
 
 const tagSchema = z.object({
   name: z.string(),
@@ -93,9 +94,58 @@ function TagEditorDialog({
               name="color"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Color</FormLabel>
                   <FormControl>
-                    <ColorPicker {...field} />
+                    <div className="space-y-2">
+                      <ColorPicker {...field} />
+
+                      <div>
+                        <span className="text-muted-foreground text-sm font-semibold">
+                          Recommended Colors
+                        </span>
+
+                        <div className="flex flex-wrap -mx-1 pt-1">
+                          {[
+                            "#F87171",
+                            "#FBBF24",
+                            "#34D399",
+                            "#60A5FA",
+                            "#818CF8",
+                            "#D97706",
+                            "#6EE7B7",
+                            "#93C5FD",
+                            "#F472B6",
+                            "#A5B4FC",
+                            "#FBCFE8",
+                            "#F3F4F6",
+                            "#E5E7EB",
+                            "#D1D5DB",
+                            "#9CA3AF",
+                            "#6B7280",
+                            "#4B5563",
+                            "#374151",
+                            "#1F2937",
+                          ].map((color) => (
+                            <div
+                              key={`recommended_color_${color}`}
+                              className="p-1"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => form.setValue("color", color)}
+                                className={cn(
+                                  field.value === color
+                                    ? "border-2 border-primary"
+                                    : "border border-transparent",
+                                  "w-8 h-8 rounded-full bg-gray-200",
+                                )}
+                                style={{ backgroundColor: color }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

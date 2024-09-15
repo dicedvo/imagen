@@ -10,10 +10,62 @@ import { cn } from "@/lib/utils";
 import useTagsStore, { useTagsSearchIndex } from "@/stores/tags_store";
 import { useShallow } from "zustand/react/shallow";
 import TagDisplay from "./TagDisplay";
+import tinycolor from "tinycolor2";
 
 export interface SearchBoxValue {
   filters: Filter[];
   query: string;
+}
+
+function FilterSearchPill({
+  filter: f,
+  onRemove,
+}: {
+  filter: Filter;
+  onRemove: () => void;
+}) {
+  const backgroundColor = useMemo(() => {
+    if (!f.meta || !f.meta.color || typeof f.meta.color !== "string") {
+      return null;
+    }
+    return f.meta.color;
+  }, [f]);
+
+  const isBgColorDark = useMemo(() => {
+    if (!backgroundColor) {
+      return false;
+    }
+    return tinycolor(backgroundColor).isDark();
+  }, [backgroundColor]);
+
+  return (
+    <div className="w-auto self-center pr-2">
+      <div
+        className={cn(
+          "px-2 py-1 rounded-md flex space-x-2 items-center text-sm",
+          {
+            "bg-gray-200": !backgroundColor,
+          },
+          [backgroundColor && isBgColorDark ? "text-white" : "text-black"],
+        )}
+        style={
+          backgroundColor
+            ? {
+                backgroundColor,
+              }
+            : {}
+        }
+      >
+        <span className="flex-1 block">{stringifyFilter(f)}</span>
+        <button
+          className="rounded-full hover:bg-black/60 hover:text-white"
+          onClick={onRemove}
+        >
+          <XIcon size={16} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function SearchBox({
@@ -112,44 +164,15 @@ export default function SearchBox({
             <div className="flex-1 flex overflow-scroll no-scrollbar">
               <div className="h-full flex-shrink-0 flex-grow flex items-stretch flex-nowrap">
                 {filters.map((f, idx) => (
-                  <div
+                  <FilterSearchPill
                     key={`filter_${idx}`}
-                    className="w-auto self-center pr-2"
-                  >
-                    <div
-                      className={cn(
-                        "px-2 py-1 rounded-md flex space-x-2 items-center text-sm",
-                        {
-                          "bg-gray-200":
-                            !f.meta ||
-                            !f.meta.color ||
-                            typeof f.meta.color !== "string",
-                        },
-                      )}
-                      style={
-                        f.meta &&
-                        f.meta.color &&
-                        typeof f.meta.color === "string"
-                          ? {
-                              backgroundColor: f.meta.color,
-                              color: "white",
-                            }
-                          : {}
-                      }
-                    >
-                      <span className="flex-1 block">{stringifyFilter(f)}</span>
-                      <button
-                        className="rounded-full hover:bg-black/60 hover:text-white"
-                        onClick={() => {
-                          const newFilters = [...filters];
-                          newFilters.splice(idx, 1);
-                          produce(newFilters, null);
-                        }}
-                      >
-                        <XIcon size={16} />
-                      </button>
-                    </div>
-                  </div>
+                    filter={f}
+                    onRemove={() => {
+                      const newFilters = [...filters];
+                      newFilters.splice(idx, 1);
+                      produce(newFilters, null);
+                    }}
+                  />
                 ))}
 
                 <input
