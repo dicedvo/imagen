@@ -67,6 +67,15 @@ export default function SearchBox({
     const textBeforeSpecial = query.slice(0, -1);
     try {
       const filter = parseFilter(textBeforeSpecial);
+      if ("field" in filter && filter.field === "tags") {
+        const tag = tags.find((t) => t.name === filter.value);
+        if (tag) {
+          filter.meta = {
+            color: tag.color,
+          };
+        }
+      }
+
       produce([...filters, filter], "");
     } catch (e) {
       // console.error(e);
@@ -113,7 +122,27 @@ export default function SearchBox({
                     key={`filter_${idx}`}
                     className="w-auto self-center pr-2"
                   >
-                    <div className="bg-gray-200 px-2 py-1 rounded-md flex space-x-2 items-center text-sm">
+                    <div
+                      className={cn(
+                        "px-2 py-1 rounded-md flex space-x-2 items-center text-sm",
+                        {
+                          "bg-gray-200":
+                            !f.meta ||
+                            !f.meta.color ||
+                            typeof f.meta.color !== "string",
+                        },
+                      )}
+                      style={
+                        f.meta &&
+                        f.meta.color &&
+                        typeof f.meta.color === "string"
+                          ? {
+                              backgroundColor: f.meta.color,
+                              color: "white",
+                            }
+                          : {}
+                      }
+                    >
                       <span className="flex-1 block">{stringifyFilter(f)}</span>
                       <button
                         className="rounded-full hover:bg-black/60 hover:text-white"
@@ -191,7 +220,12 @@ export default function SearchBox({
                         <button
                           className="text-left w-full px-4 py-2 hover:bg-gray-100"
                           onClick={() => {
-                            produce([...filters, any("tags", tag.name)], "");
+                            const anyFilter = any("tags", tag.name);
+                            anyFilter.meta = {
+                              color: tag.color,
+                            };
+
+                            produce([...filters, anyFilter], "");
                           }}
                         >
                           <TagDisplay tag={tag} />

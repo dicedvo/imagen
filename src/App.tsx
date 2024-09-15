@@ -495,8 +495,6 @@ function App() {
                     query: searchQuery,
                   }}
                   onChange={({ filters, query }) => {
-                    console.log(filters, query);
-
                     setFilters(filters);
                     setSearchQuery(query);
                   }}
