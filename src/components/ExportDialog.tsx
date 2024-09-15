@@ -70,7 +70,7 @@ const outputExportSettingsSchema = z.object({
   settings: z.record(z.any()),
 });
 
-function recordsForExport(
+function getRecordsForExport(
   exportScope: z.infer<typeof outputExportSettingsSchema>["exportScope"],
 ) {
   switch (exportScope) {
@@ -128,11 +128,8 @@ interface ExportItem {
 function getPrimaryExportInfo(
   template: Template,
   filenameFormat: string,
-  exportScope: z.infer<typeof outputExportSettingsSchema>["exportScope"],
+  records: DataRecord[],
 ): ExportInfo[] {
-  const records = recordsForExport(exportScope);
-  if (!records) return [];
-
   return records
     .map((record) => {
       const rawValues = getRawTemplateInstanceValue(template, record);
@@ -149,9 +146,10 @@ function getPrimaryExportInfo(
 
 async function exportRecords(
   _exporter: _OutputExporter,
+  template: Template | null,
+  recordsToExport: DataRecord[],
   opts: z.infer<typeof outputExportSettingsSchema>,
 ) {
-  const template = useTemplateStore.getState().template;
   if (!template) {
     throw new Error("No template loaded");
   }
@@ -159,7 +157,7 @@ async function exportRecords(
   const toBeExported = getPrimaryExportInfo(
     template,
     opts.filenameFormat,
-    opts.exportScope,
+    recordsToExport,
   );
   if (toBeExported.length === 0) {
     throw new Error("No records to export");
@@ -237,12 +235,13 @@ export default function ExportDialog({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-
   const tags = useTagsStore(useShallow((state) => state.tags));
 
   const [outputExporters, getExporter] = useOutputExporterStore(
     useShallow((state) => [state.items, state.get]),
   );
+
+  const template = useTemplateStore(useShallow((state) => state.template));
 
   const form = useForm<z.infer<typeof outputExportSettingsSchema>>({
     resolver: zodResolver(outputExportSettingsSchema),
@@ -255,7 +254,16 @@ export default function ExportDialog({
   });
 
   const exporterId = form.watch("exporterId");
+  const exportScope = form.watch("exportScope");
   const currentExporter = useMemo(() => getExporter(exporterId), [exporterId]);
+  const recordsForExport = useMemo(
+    () => getRecordsForExport(exportScope) ?? [],
+    [exportScope],
+  );
+
+  const isExportable = useMemo(() => {
+    return recordsForExport.length > 0 && !!template;
+  }, [recordsForExport, template]);
 
   useEffect(() => {
     if (outputExporters.length === 0) return;
@@ -284,7 +292,9 @@ export default function ExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger disabled={!isExportable} asChild>
+        {children}
+      </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
@@ -393,17 +403,20 @@ export default function ExportDialog({
           <Button
             onClick={() => {
               if (!currentExporter) return;
-              exportRecords(currentExporter, form.getValues()).then(
-                ({ filename, url }) => {
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = filename;
-                  a.click();
+              exportRecords(
+                currentExporter,
+                template,
+                recordsForExport,
+                form.getValues(),
+              ).then(({ filename, url }) => {
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                a.click();
 
-                  onSuccess();
-                  setOpen(false);
-                },
-              );
+                onSuccess();
+                setOpen(false);
+              });
             }}
           >
             Export
