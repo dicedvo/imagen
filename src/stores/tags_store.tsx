@@ -63,7 +63,11 @@ const useTagsStore = create<TagState>((set) => {
     updateTag: (tagName, tag) =>
       set((state) => {
         const tagIndex = state.tags.findIndex((t) => t.name === tagName);
-        const newTags = state.tags;
+        if (tagIndex === -1) {
+          return state;
+        }
+
+        const newTags = [...state.tags];
 
         const oldTag = newTags[tagIndex];
         searchIndex.remove(oldTag);

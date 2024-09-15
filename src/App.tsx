@@ -60,6 +60,7 @@ import TagsDialog from "./components/TagsDialog";
 import useTagsStore from "./stores/tags_store";
 import TagDisplay from "./components/TagDisplay";
 import useSearchStore from "./stores/search_store";
+import { getProperty, hasProperty } from "dot-prop";
 
 function determineColumns(
   fields: Field[],
@@ -72,6 +73,121 @@ function determineColumns(
     header: name,
     accessorKey: key,
   }));
+}
+
+function satisfiesFilterFn(filters: Filter[]) {
+  return <T extends object = Record<string, unknown>>(result: T) => {
+    for (const filter of filters) {
+      if (!("field" in filter)) {
+        continue;
+      }
+
+      let field = filter.field;
+      if (field === "tags") {
+        field = "__tags";
+      }
+
+      if (!hasProperty(result, field)) {
+        return false;
+      }
+
+      const gotValue = getProperty(result, field) as unknown;
+      const expected = filter.value;
+
+      switch (filter.op) {
+        case "eq": {
+          if (gotValue !== expected) {
+            return false;
+          }
+          break;
+        }
+        case "neq": {
+          if (gotValue === expected) {
+            return false;
+          }
+          break;
+        }
+        case "gt": {
+          if (
+            typeof gotValue !== "number" ||
+            typeof expected !== "number" ||
+            gotValue <= expected
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "gte": {
+          if (
+            typeof gotValue !== "number" ||
+            typeof expected !== "number" ||
+            gotValue < expected
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "lt": {
+          if (
+            typeof gotValue !== "number" ||
+            typeof expected !== "number" ||
+            gotValue >= expected
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "lte": {
+          if (
+            typeof gotValue !== "number" ||
+            typeof expected !== "number" ||
+            gotValue > expected
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "like": {
+          if (
+            typeof gotValue !== "string" ||
+            typeof expected !== "string" ||
+            !gotValue.includes(expected)
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "nlike": {
+          if (
+            typeof gotValue !== "string" ||
+            typeof expected !== "string" ||
+            gotValue.includes(expected)
+          ) {
+            return false;
+          }
+          break;
+        }
+        case "any": {
+          if (
+            !Array.isArray(gotValue) ||
+            !gotValue.some((v) => v === expected)
+          ) {
+            return false;
+          }
+          break;
+        }
+      }
+    }
+    return true;
+  };
+}
+
+function filterResultsByFilter<T extends object = Record<string, unknown>>(
+  results: T[],
+  filters: Filter[],
+): T[] {
+  const satisfiesFilter = satisfiesFilterFn(filters);
+  return results.filter(satisfiesFilter);
 }
 
 function ColumnsDropdown<TData = unknown, TValue = unknown>({
@@ -372,13 +488,18 @@ function App() {
   const pluginRegistry = usePluginStore();
 
   const foundRecords = useMemo(() => {
-    if (searchQuery.length === 0) {
+    if (searchQuery.length === 0 && filters.length === 0) {
       return records;
     }
 
     const results = recordsSearchIndex.search(searchQuery).map((r) => r.id);
-    return records.filter((r) => results.includes(r.__id));
-  }, [records, searchQuery]);
+    return filterResultsByFilter(
+      results.length === 0
+        ? records
+        : records.filter((r) => results.includes(r.__id)),
+      filters,
+    );
+  }, [records, filters, searchQuery]);
 
   useEffect(() => {
     loadBasePlugins(pluginRegistry.load);
@@ -684,7 +805,7 @@ function App() {
                   onChange={(newValues) => {
                     if (!template || !currentRecord || !currentRecord.__id)
                       return;
-                    // console.log(record
+
                     updateTemplateInstanceValue(
                       currentRecord.__id,
                       template.name,

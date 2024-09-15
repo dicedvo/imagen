@@ -7,7 +7,7 @@ import {
 import { SearchIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
-import useTagsStore, { Tag, useTagsSearchIndex } from "@/stores/tags_store";
+import useTagsStore, { useTagsSearchIndex } from "@/stores/tags_store";
 import { useShallow } from "zustand/react/shallow";
 import TagDisplay from "./TagDisplay";
 
@@ -38,10 +38,16 @@ export default function SearchBox({
       return null;
     }
 
-    const results = tagsSearch.search(query);
+    const existingFilters = filters
+      .filter((f) => "field" in f)
+      .map((f) => f.value);
+    const results = tagsSearch.search(query).map((r) => r.id);
+    const foundTags = tags.filter(
+      (t) => results.includes(t.name) && !existingFilters.includes(t.name),
+    );
 
     return {
-      tags: results as unknown[] as Tag[],
+      tags: foundTags,
     };
   }, [query]);
 
