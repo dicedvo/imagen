@@ -44,6 +44,7 @@ import { ExportItem } from "@/core/template/export";
 import useRecordsStore from "@/stores/records_store";
 import jsPDF from "jspdf";
 import { pixels } from "@pacote/pixels";
+import useTemplateStore from "@/stores/template_store";
 
 const PaperConfigurationSchema = z.object({
   label: z.string().optional(),
@@ -113,6 +114,10 @@ const a4size = paperTemplatesMap["A4"];
 
 export default function PrintDialog({ children }: { children: ReactNode }) {
   const [open, setIsOpen] = useState(false);
+
+  const isExportable = useTemplateStore(
+    useShallow((state) => !!state.template),
+  );
 
   const form = useForm<z.infer<typeof PrintSettingsSchema>>({
     resolver: zodResolver(PrintSettingsSchema),
@@ -243,7 +248,9 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
 
   return (
     <Dialog open={open} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger disabled={!isExportable && exports.length === 0} asChild>
+        {children}
+      </DialogTrigger>
 
       <DialogContent className="p-0 max-w-6xl">
         <div className="flex">
@@ -568,7 +575,10 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
         </div>
 
         <DialogFooter className="px-6 pb-4 space-x-3">
-          <Button onClick={printExports} disabled={exports.length === 0}>
+          <Button
+            onClick={printExports}
+            disabled={!isExportable && exports.length === 0}
+          >
             Print
           </Button>
           <DialogClose asChild>
