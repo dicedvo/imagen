@@ -24,7 +24,7 @@ export default function Header() {
 
       <div className="pr-2 space-x-2 flex items-center">
         <PrintDialog>
-          <Button size="sm" variant="link">
+          <Button size="sm" variant="ghost">
             <PrinterIcon size={16} className="mr-2" />
             <span>Print</span>
           </Button>

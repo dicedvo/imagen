@@ -75,10 +75,6 @@ export default function AssetLibraryDialog({
     );
   }, [uriHandler, assets, value]);
 
-  useEffect(() => {
-    console.log(assets);
-  }, [assets]);
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>

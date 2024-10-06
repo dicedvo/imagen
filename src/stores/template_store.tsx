@@ -1,8 +1,11 @@
+import { DataRecord } from "@/core/data";
 import { Template, TemplateInstanceValues } from "@/core/template/types";
+import { valuesFromTemplate } from "@/core/template/values";
 import { produce } from "immer";
 import { create } from "zustand";
+import { useImageGeneratorsStore } from "./registry_store";
 
-export interface TemplateState {
+export interface TemplateStore {
   template: Template | null;
   templateInstanceValues: Record<
     string,
@@ -15,12 +18,12 @@ export interface TemplateState {
     values: TemplateInstanceValues,
   ) => void;
   getTemplateInstanceValues: (
-    templateName: string,
-    recordId: string,
+    recordId: DataRecord | string,
+    templateOrTemplateName?: Template | string | null,
   ) => TemplateInstanceValues | null;
 }
 
-const useTemplateStore = create<TemplateState>((set, get) => ({
+const useTemplateStore = create<TemplateStore>((set, get) => ({
   template: null,
   templateInstanceValues: {},
   setTemplate(template) {
@@ -37,9 +40,46 @@ const useTemplateStore = create<TemplateState>((set, get) => ({
       }),
     );
   },
-  getTemplateInstanceValues(templateName, recordId) {
-    if (recordId.length === 0 || templateName.length === 0) return null;
-    return get().templateInstanceValues[recordId]?.[templateName] || null;
+  getTemplateInstanceValues(recordOrRecordId, templateOrTemplateName) {
+    const template = get().template;
+    if (!template && !templateOrTemplateName) return null;
+
+    if (
+      (!recordOrRecordId ||
+        (typeof recordOrRecordId !== "string" && !recordOrRecordId.__id)) &&
+      template
+    ) {
+      return valuesFromTemplate(template, useImageGeneratorsStore.getState());
+    }
+
+    const finalTemplateName = template
+      ? template.name
+      : typeof templateOrTemplateName === "string"
+        ? templateOrTemplateName
+        : templateOrTemplateName!.name;
+
+    const finalRecordId =
+      typeof recordOrRecordId === "string"
+        ? recordOrRecordId
+        : recordOrRecordId.__id;
+
+    const foundTemplateInstanceValue =
+      get().templateInstanceValues[finalRecordId]?.[finalTemplateName];
+
+    if (!foundTemplateInstanceValue && template) {
+      if (
+        templateOrTemplateName &&
+        typeof templateOrTemplateName !== "string"
+      ) {
+        return valuesFromTemplate(
+          templateOrTemplateName,
+          useImageGeneratorsStore.getState(),
+        );
+      } else if (finalTemplateName === template.name) {
+        return valuesFromTemplate(template, useImageGeneratorsStore.getState());
+      }
+    }
+    return foundTemplateInstanceValue || null;
   },
 }));
 

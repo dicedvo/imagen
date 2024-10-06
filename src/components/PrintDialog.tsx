@@ -1,4 +1,6 @@
-import PrintPreviewer from "@/components/PrintPreviewer";
+import PrintPreviewer, {
+  PRINT_SCALING_FACTOR,
+} from "@/components/PrintPreviewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -12,6 +14,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,9 +24,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -32,9 +33,17 @@ import {
   taggedExportScope,
 } from "@/schemas/OutputExportSettingsSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import ExportScopeDropdown from "./ExportScopeDropdown";
+import { useShallow } from "zustand/react/shallow";
+import { useOutputExporterStore } from "@/stores/registry_store";
+import { useExport } from "@/lib/hooks";
+import { ExportItem } from "@/core/template/export";
+import useRecordsStore from "@/stores/records_store";
+import jsPDF from "jspdf";
+import { pixels } from "@pacote/pixels";
 
 const PaperConfigurationSchema = z.object({
   label: z.string().optional(),
@@ -46,15 +55,10 @@ type PaperTemplate = z.infer<typeof PaperConfigurationSchema>;
 
 const PrintSettingsSchema = z.object({
   printScope: exportScope.or(taggedExportScope),
-  printMode: z.enum(["all", "dynamic_only", "static_only"]),
+  renderFilter: z.enum(["all", "dynamic_only", "static_only"]),
   showOutline: z.boolean(),
   // in pixels
-  printMargin: z.object({
-    top: z.number(),
-    right: z.number(),
-    bottom: z.number(),
-    left: z.number(),
-  }),
+  imageSpacing: z.number(),
   scale: z.number(),
 
   paperSize: PaperConfigurationSchema,
@@ -68,6 +72,7 @@ const PrintSettingsSchema = z.object({
   }),
 });
 
+// width and height in mm
 const paperTemplates: PaperTemplate[] = [
   { label: "A0", width: 841, height: 1189 },
   { label: "A1", width: 594, height: 841 },
@@ -96,44 +101,166 @@ const paperOrientations: { label: string; value: string }[] = [
   { label: "Landscape", value: "landscape" },
 ];
 
-const a4size = paperTemplates.find((t) => t.label === "A4")!;
+const paperTemplatesMap = paperTemplates.reduce(
+  (acc, t) => {
+    acc[t.label!] = t;
+    return acc;
+  },
+  {} as Record<string, PaperTemplate>,
+);
+
+const a4size = paperTemplatesMap["A4"];
 
 export default function PrintDialog({ children }: { children: ReactNode }) {
-  const [showIndividualPrintMargin, setShowIndividualPrintMargin] =
-    useState(false);
+  const [open, setIsOpen] = useState(false);
 
   const form = useForm<z.infer<typeof PrintSettingsSchema>>({
     resolver: zodResolver(PrintSettingsSchema),
     defaultValues: {
-      printMode: "all",
+      renderFilter: "all",
       printScope: "current",
       showOutline: false,
-      printMargin: { top: 0, right: 0, bottom: 0, left: 0 },
+      imageSpacing: 0.25,
       scale: 1,
       paperSize: a4size,
-      paperOrientation: "portrait",
+      paperOrientation: "landscape",
       paperMargin: { top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 },
     },
   });
 
-  const paperSize = form.watch("paperSize");
+  const previousPaperOrientation = useRef<string | null>(null);
+  const [
+    printScope,
+    paperMargin,
+    paperSize,
+    paperOrientation,
+    imageSpacing,
+    imageScale,
+    renderFilter,
+    showOutline,
+  ] = form.watch([
+    "printScope",
+    "paperMargin",
+    "paperSize",
+    "paperOrientation",
+    "imageSpacing",
+    "scale",
+    "renderFilter",
+    "showOutline",
+  ]);
 
-  // TODO: replace with actual tags from the database
-  const tags = ["ready_for_print", "for_web", "for_email"];
+  const selectedRecords = useRecordsStore(
+    useShallow((state) => state.selectRecordsByScope(printScope)),
+  );
+  const { exportImages } = useExport();
+
+  const jpegExporter = useOutputExporterStore(
+    useShallow((state) => state.get("jpeg")!),
+  );
+
+  const [exports, setExports] = useState<ExportItem[]>([]);
+  const [printReadyExports, setPrintReadyExports] = useState<ExportItem[]>([]);
+
+  const printExports = () => {
+    if (printReadyExports.length === 0) return;
+
+    const finalPaperSize = {
+      width: pixels(`${paperSize.width}mm`) * PRINT_SCALING_FACTOR,
+      height: pixels(`${paperSize.height}mm`) * PRINT_SCALING_FACTOR,
+    };
+
+    const margin = {
+      x:
+        pixels(
+          typeof paperMargin.left === "string"
+            ? paperMargin.left
+            : `${paperMargin.left}in`,
+        ) * PRINT_SCALING_FACTOR,
+      y:
+        pixels(
+          typeof paperMargin.top === "string"
+            ? paperMargin.top
+            : `${paperMargin.top}in`,
+        ) * PRINT_SCALING_FACTOR,
+    };
+
+    const pdf = new jsPDF(paperOrientation, "px", [
+      finalPaperSize.width,
+      finalPaperSize.height,
+    ]);
+
+    for (let i = 0; i < printReadyExports.length; i++) {
+      const exportItem = printReadyExports[i];
+      const img = new Image();
+      img.src = URL.createObjectURL(exportItem.content);
+      pdf.addImage(
+        img,
+        "PNG",
+        margin.x,
+        margin.y,
+        finalPaperSize.width,
+        finalPaperSize.height,
+      );
+      if (i < printReadyExports.length - 1) {
+        pdf.addPage();
+      }
+    }
+
+    pdf.autoPrint();
+    window.open(URL.createObjectURL(pdf.output("blob")));
+  };
+
+  useEffect(() => {
+    if (previousPaperOrientation.current === paperOrientation) {
+      return;
+    }
+
+    if (
+      (paperOrientation === "landscape" &&
+        paperSize.height < paperSize.width) ||
+      (paperOrientation === "portrait" && paperSize.width < paperSize.height)
+    ) {
+      return;
+    }
+
+    previousPaperOrientation.current = paperOrientation;
+
+    form.setValue("paperSize", {
+      width: paperSize.height,
+      height: paperSize.width,
+    });
+  }, [paperOrientation, paperSize]);
+
+  useEffect(() => {
+    if (!jpegExporter) return;
+    exportImages({
+      exporter: jpegExporter,
+      exporterOptions: {},
+      recordsForExport: selectedRecords,
+      renderFilter,
+    }).then(setExports);
+  }, [jpegExporter, selectedRecords, renderFilter]);
 
   return (
-    <Dialog open={false}>
-      <DialogTrigger disabled asChild>
-        {children}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
 
       <DialogContent className="p-0 max-w-6xl">
         <div className="flex">
           <div className="w-2/3 h-[80vh] bg-gray-200 rounded-tl">
-            <PrintPreviewer paperSize={paperSize} />
+            <PrintPreviewer
+              className="overflow-x-hidden overflow-y-auto rounded-tl"
+              paperSize={paperSize}
+              margin={paperMargin}
+              exports={exports ?? []}
+              spacing={imageSpacing}
+              scale={imageScale}
+              showOutline={showOutline}
+              onGenerateExports={setPrintReadyExports}
+            />
           </div>
 
-          <div className="w-1/3 px-6 pb-6 overflow-y-auto h-[80vh]">
+          <div className="w-1/3 px-6 pb-6 overflow-y-auto h-[80vh] overflow-x-hidden">
             <DialogTitle className="pt-6 pb-6">Print</DialogTitle>
 
             <Form {...form}>
@@ -145,35 +272,10 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                     <FormItem>
                       <FormLabel>Records to export</FormLabel>
                       <FormControl>
-                        <Select
+                        <ExportScopeDropdown
                           defaultValue={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select records to export..." />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectItem value="current">
-                                Current record
-                              </SelectItem>
-                              <SelectItem value="selected">
-                                Selected records
-                              </SelectItem>
-                              <SelectItem value="all">All records</SelectItem>
-                            </SelectGroup>
-
-                            <SelectGroup>
-                              <SelectLabel>Records tagged with</SelectLabel>
-                              {tags.map((tag) => (
-                                <SelectItem key={tag} value={`tagged:${tag}`}>
-                                  {tag}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                          onChange={field.onChange}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -182,7 +284,7 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
 
                 <FormField
                   control={form.control}
-                  name="printMode"
+                  name="renderFilter"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Print mode</FormLabel>
@@ -229,96 +331,34 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                   )}
                 />
 
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">Print margins</span>
-                  <div>
-                    {showIndividualPrintMargin ? (
-                      <div className="space-y-2">
-                        <div className="flex space-x-2">
-                          {["top", "right", "bottom", "left"].map((side) => (
-                            <FormField
-                              key={`printMargin[${side}]`}
-                              control={form.control}
-                              name={
-                                `printMargin.${side}` as
-                                  | "printMargin.top"
-                                  | "printMargin.right"
-                                  | "printMargin.bottom"
-                                  | "printMargin.left"
-                              }
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>
-                                    {side[0].toUpperCase() + side.substring(1)}
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      value={field.value}
-                                      onChange={(event) =>
-                                        field.onChange(
-                                          event.target.valueAsNumber,
-                                        )
-                                      }
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <FormField
-                        control={form.control}
-                        name="printMargin"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Overall</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                {...field}
-                                value={field.value.top}
-                                onChange={(event) =>
-                                  field.onChange({
-                                    top: event.target.valueAsNumber,
-                                    right: event.target.valueAsNumber,
-                                    bottom: event.target.valueAsNumber,
-                                    left: event.target.valueAsNumber,
-                                  })
-                                }
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 space-y-0">
-                  <div className="space-y-0">
-                    <Checkbox
-                      id="show-indiv-print-margins"
-                      checked={showIndividualPrintMargin}
-                      onCheckedChange={(state) =>
-                        setShowIndividualPrintMargin(
-                          state === "indeterminate" ? false : state,
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="">
-                    <label
-                      htmlFor="show-indiv-print-margins"
-                      className="text-sm leading-none font-medium"
-                    >
-                      Show individual print margins
-                    </label>
-                  </div>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="imageSpacing"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Image Spacing (in)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          min={0}
+                          step={0.25}
+                          onChange={(event) => {
+                            field.onChange(
+                              Number.isFinite(event.target.valueAsNumber)
+                                ? event.target.valueAsNumber
+                                : 0,
+                            );
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <FormDescription>
+                        The spacing between images in centimeters.
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
@@ -334,7 +374,11 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                           {...field}
                           value={field.value}
                           onChange={(event) =>
-                            field.onChange(event.target.valueAsNumber)
+                            field.onChange(
+                              Number.isFinite(event.target.valueAsNumber)
+                                ? event.target.valueAsNumber
+                                : 0,
+                            )
                           }
                         />
                       </FormControl>
@@ -352,15 +396,13 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                         <Select
                           value={field.value.label ?? "Custom"}
                           onValueChange={(value) => {
-                            field.onChange(
-                              paperTemplates.find(
-                                (pt) => pt.label === value,
-                              ) ?? {
+                            field.onChange({
+                              ...(paperTemplatesMap[value] ?? {
                                 label: "Custom",
                                 width: field.value.width,
                                 height: field.value.height,
-                              },
-                            );
+                              }),
+                            });
                           }}
                         >
                           <SelectTrigger>
@@ -368,8 +410,12 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                               {field.value.label ?? "Custom"}
                             </SelectValue>
                           </SelectTrigger>
+
                           <SelectContent>
-                            <SelectItem value="Custom">Custom...</SelectItem>
+                            <SelectItem value="Custom">
+                              Custom size...
+                            </SelectItem>
+
                             {paperTemplates.map((pt) => (
                               <SelectItem
                                 key={`paper_${pt.label!}`}
@@ -399,7 +445,11 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                               {...field}
                               value={field.value}
                               onChange={(event) =>
-                                field.onChange(event.target.valueAsNumber)
+                                field.onChange(
+                                  Number.isFinite(event.target.valueAsNumber)
+                                    ? event.target.valueAsNumber
+                                    : 0,
+                                )
                               }
                             />
                           </FormControl>
@@ -419,7 +469,11 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                               {...field}
                               value={field.value}
                               onChange={(event) =>
-                                field.onChange(event.target.valueAsNumber)
+                                field.onChange(
+                                  Number.isFinite(event.target.valueAsNumber)
+                                    ? event.target.valueAsNumber
+                                    : 0,
+                                )
                               }
                             />
                           </FormControl>
@@ -487,10 +541,17 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
                                   <Input
                                     type="number"
                                     {...field}
-                                    value={field.value}
-                                    onChange={(event) =>
-                                      field.onChange(event.target.valueAsNumber)
-                                    }
+                                    step={0.25}
+                                    min={0}
+                                    onChange={(event) => {
+                                      field.onChange(
+                                        Number.isFinite(
+                                          event.target.valueAsNumber,
+                                        )
+                                          ? event.target.valueAsNumber
+                                          : 0,
+                                      );
+                                    }}
                                   />
                                 </FormControl>
                               </FormItem>
@@ -507,7 +568,9 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
         </div>
 
         <DialogFooter className="px-6 pb-4 space-x-3">
-          <Button>Print</Button>
+          <Button onClick={printExports} disabled={exports.length === 0}>
+            Print
+          </Button>
           <DialogClose asChild>
             <Button variant="secondary">Cancel</Button>
           </DialogClose>

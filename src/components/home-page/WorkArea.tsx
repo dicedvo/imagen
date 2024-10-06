@@ -41,9 +41,11 @@ export default function WorkArea() {
       return null;
     } else if (currentRecord && currentRecord.__id) {
       const gotValues = getTemplateInstanceValues(
-        template.name,
         currentRecord.__id,
+        template.name,
       );
+
+      console.log(gotValues);
 
       if (gotValues) {
         return gotValues;
@@ -60,8 +62,8 @@ export default function WorkArea() {
       editableTemplateInstanceValues
     ) {
       const values = getTemplateInstanceValues(
-        template.name,
         currentRecord.__id,
+        template.name,
       );
 
       return compileTemplateValues(
@@ -116,6 +118,7 @@ export default function WorkArea() {
               values={editableTemplateInstanceValues}
               onChange={(newValues) => {
                 if (!template || !currentRecord || !currentRecord.__id) return;
+                console.log(newValues);
 
                 updateTemplateInstanceValue(
                   currentRecord.__id,

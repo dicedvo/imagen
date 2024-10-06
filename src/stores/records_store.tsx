@@ -1,4 +1,5 @@
 import { DataRecord } from "@/core/data";
+import { ExportScope } from "@/schemas/OutputExportSettingsSchema";
 import { create } from "zustand";
 import useSearchStore from "./search_store";
 
@@ -13,6 +14,7 @@ export interface RecordsState {
   setSelectedRecordIndices: (...indices: number[]) => void;
   currentRecord(): DataRecord | null;
   selectedRecords(): DataRecord[];
+  selectRecordsByScope(scope: ExportScope): DataRecord[];
 }
 
 export const RECORDS_SEARCH_KEY = Symbol();
@@ -120,6 +122,28 @@ const useRecordsStore = create<RecordsState>((set, get) => {
       return indices
         .filter((index) => index < records.length)
         .map((index) => records[index]);
+    },
+    selectRecordsByScope(exportScope: ExportScope) {
+      switch (exportScope) {
+        case "current": {
+          const currentRecord = get().currentRecord();
+          if (!currentRecord) return [];
+          return [currentRecord];
+        }
+        case "selected":
+          return get().selectedRecords();
+        case "all":
+          return get().records;
+        default:
+          if (exportScope.startsWith("tagged:")) {
+            const tag = decodeURIComponent(exportScope.replace(/^tagged:/, ""));
+            const taggedRecords = get().records.filter((record) => {
+              return record.__tags && record.__tags.indexOf(tag) !== -1;
+            });
+            return taggedRecords;
+          }
+          return get().records;
+      }
     },
   };
 });

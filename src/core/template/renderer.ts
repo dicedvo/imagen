@@ -10,6 +10,7 @@ import { AssetURIHandler } from "./assets";
 import { emitter as fontLoadEmitter, isItalic, loadFont } from "./fonts";
 import { autoFitText, loadAsyncImage } from "./konva-helpers";
 import {
+  editableElementTypes,
   ImageGeneratorTemplateElement,
   Template,
   TemplateElement,
@@ -42,9 +43,17 @@ function checkLayer(layer: unknown): layer is Konva.Layer {
   return true;
 }
 
+function _getTemplateId(template: Template) {
+  return template.name + "_" + cyrb53(JSON.stringify(template));
+}
+
+export type RenderLayerFilter = "all" | "dynamic_only" | "static_only";
+
 export default class TemplateRenderer {
   public layer: Konva.Layer | null = null;
   public uriRegistry: IRegistry<URIHandler> | null = null;
+  public layerFilter: RenderLayerFilter = "all";
+  private _shouldReset = false;
 
   _waitForAssetLoad = false;
   _fill: string | null = null;
@@ -74,6 +83,12 @@ export default class TemplateRenderer {
 
   setFill(fill: string | null) {
     this._fill = fill;
+  }
+
+  setRenderLayerFilter(newFilter: RenderLayerFilter) {
+    if (newFilter === this.layerFilter) return;
+    this.layerFilter = newFilter;
+    this._shouldReset = true;
   }
 
   async _resolveUri(rawSrc: string): Promise<string> {
@@ -163,19 +178,23 @@ export default class TemplateRenderer {
     this._currentTemplateId = newTemplateId;
   }
 
-  _getTemplateId(template: Template) {
-    return template.name + "_" + cyrb53(JSON.stringify(template));
-  }
-
   async _injectValues(
     values: TemplateInstanceValues,
     layer: Konva.Layer | Konva.Group,
   ) {
+    // Avoid unnecessary injection of values
+    // if they are not going to be rendered
+    if (this.layerFilter === "static_only") {
+      return;
+    }
+
     let needsRedraw = false;
 
     for (const element of layer.children) {
       if (!element.getAttr("__editable")) {
-        continue;
+        if (!(element instanceof Konva.Group)) {
+          continue;
+        }
       }
 
       const value = values[element.id() ?? element.name() ?? ""];
@@ -318,6 +337,18 @@ export default class TemplateRenderer {
     parent: Konva.Layer | Konva.Group,
   ) {
     if (!checkLayer(this.layer)) return;
+
+    if (this.layerFilter !== "all") {
+      if (
+        (this.layerFilter === "dynamic_only" &&
+          element.type !== "group" &&
+          !editableElementTypes[element.type]) ||
+        (this.layerFilter === "static_only" &&
+          editableElementTypes[element.type])
+      ) {
+        return;
+      }
+    }
 
     if (element.type === "text") {
       const textElement = this._findLayer<Konva.Text>(
@@ -522,8 +553,6 @@ export default class TemplateRenderer {
         y: element.y,
       });
 
-      groupElement.setAttr("__editable", true);
-
       for (const child of element.children) {
         await this._renderElement(child, groupElement);
       }
@@ -533,11 +562,15 @@ export default class TemplateRenderer {
   async render(template: Template, values: TemplateInstanceValues) {
     if (!checkLayer(this.layer)) return;
 
-    const templateId = this._getTemplateId(template);
+    const templateId = _getTemplateId(template);
+    if (this._currentTemplateId !== templateId) {
+      this._shouldReset = true;
+    }
+
     const { canvas_width: canvasWidth, canvas_height: canvasHeight } =
       template.settings;
 
-    if (this._currentTemplateId === templateId) {
+    if (!this._shouldReset) {
       await this._injectValues(values, this.layer);
       await this.waitForAssetLoad();
       return;
@@ -580,6 +613,8 @@ export default class TemplateRenderer {
     for (const element of template.elements) {
       await this._renderElement(element, this.layer);
     }
+
+    this._shouldReset = false;
 
     await this._injectValues(values, this.layer);
     await this.waitForAssetLoad();

@@ -1,4 +1,3 @@
-import TagDisplay from "@/components/TagDisplay";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,72 +21,46 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataRecord } from "@/core/data";
-import { exportRecords } from "@/core/template/export";
-import { Template } from "@/core/template/types";
-import { valuesFromTemplate } from "@/core/template/values";
-import { outputExportSettingsSchema } from "@/schemas/OutputExportSettingsSchema";
-import useRecordsStore from "@/stores/records_store";
+import { ExportItem } from "@/core/template/export";
 import {
-  useImageGeneratorsStore,
-  useOutputExporterStore,
-  useUriHandlersStore,
-} from "@/stores/registry_store";
-import useTagsStore from "@/stores/tags_store";
-import useTemplateStore from "@/stores/template_store";
+  ExportScope,
+  outputExportSettingsSchema,
+} from "@/schemas/OutputExportSettingsSchema";
+import useRecordsStore from "@/stores/records_store";
+import { useOutputExporterStore } from "@/stores/registry_store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useShallow } from "zustand/react/shallow";
+import ExportScopeDropdown from "./ExportScopeDropdown";
+import JSZip from "jszip";
+import { useExport } from "@/lib/hooks";
+import { isTextDynamic } from "@/core/template/values";
 
-function getRecordsForExport(
-  exportScope: z.infer<typeof outputExportSettingsSchema>["exportScope"],
-) {
-  switch (exportScope) {
-    case "current": {
-      const currentRecord = useRecordsStore.getState().currentRecord();
-      if (!currentRecord) return;
-      return [currentRecord];
+async function processExports(exports: ExportItem[]) {
+  if (exports.length === 1) {
+    const [exported] = exports;
+    return {
+      filename: exported.filename,
+      url: URL.createObjectURL(exported.content),
+    };
+  } else {
+    const zip = new JSZip();
+    for (const { filename, content } of exports) {
+      zip.file(filename, content);
     }
-    case "selected":
-      return useRecordsStore.getState().selectedRecords();
-    case "all":
-      return useRecordsStore.getState().records;
-    default:
-      if (exportScope.startsWith("tagged:")) {
-        const tag = decodeURIComponent(exportScope.replace(/^tagged:/, ""));
-        const taggedRecords = useRecordsStore
-          .getState()
-          .records.filter((record) => {
-            return record.__tags && record.__tags.indexOf(tag) !== -1;
-          });
-        return taggedRecords;
-      }
-      return useRecordsStore.getState().records;
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    return {
+      filename: "export.zip",
+      url: URL.createObjectURL(blob),
+    };
   }
-}
-
-function getRawTemplateInstanceValue(
-  template: Template | null,
-  record: DataRecord,
-) {
-  if (!record.__id || !template) return null;
-
-  const templateInstanceValues = useTemplateStore
-    .getState()
-    .getTemplateInstanceValues(template.name, record.__id);
-  if (templateInstanceValues) {
-    return templateInstanceValues;
-  }
-
-  return valuesFromTemplate(template, useImageGeneratorsStore.getState());
 }
 
 export default function ExportDialog({
@@ -95,18 +68,16 @@ export default function ExportDialog({
   onSuccess,
   children,
 }: {
-  scope?: z.infer<typeof outputExportSettingsSchema>["exportScope"];
+  scope?: ExportScope;
   onSuccess: () => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const tags = useTagsStore(useShallow((state) => state.tags));
+  const { exportImages } = useExport();
 
   const [outputExporters, getExporter] = useOutputExporterStore(
     useShallow((state) => [state.items, state.get]),
   );
-
-  const template = useTemplateStore(useShallow((state) => state.template));
 
   const form = useForm<z.infer<typeof outputExportSettingsSchema>>({
     resolver: zodResolver(outputExportSettingsSchema),
@@ -118,17 +89,15 @@ export default function ExportDialog({
     },
   });
 
-  const exporterId = form.watch("exporterId");
-  const exportScope = form.watch("exportScope");
+  const [exporterId, exportScope, filenameFormat] = form.watch([
+    "exporterId",
+    "exportScope",
+    "filenameFormat",
+  ]);
   const currentExporter = useMemo(() => getExporter(exporterId), [exporterId]);
-  const recordsForExport = useMemo(
-    () => getRecordsForExport(exportScope) ?? [],
-    [exportScope],
+  const forExportCount = useRecordsStore(
+    useShallow((state) => state.selectRecordsByScope(exportScope).length),
   );
-
-  const isExportable = useMemo(() => {
-    return recordsForExport.length > 0 && !!template;
-  }, [recordsForExport, template]);
 
   useEffect(() => {
     if (outputExporters.length === 0) return;
@@ -136,17 +105,13 @@ export default function ExportDialog({
   }, [outputExporters]);
 
   useEffect(() => {
-    if (!currentExporter || typeof currentExporter === "undefined") return;
-
-    const filenameFormat = form.getValues("filenameFormat");
-    if (filenameFormat.endsWith(`.${currentExporter.fileExtension}`)) return;
-
-    // remove old file extension
-    const trimmed = filenameFormat.replace(/\.[^.]+$/, "");
-
-    // Set file extension to filename
-    form.setValue("filenameFormat", trimmed + currentExporter.fileExtension);
-  }, [exporterId, currentExporter]);
+    if (forExportCount > 1 && !isTextDynamic(filenameFormat)) {
+      form.setValue("filenameFormat", `${filenameFormat}_{{_index}}`, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    }
+  }, [forExportCount, filenameFormat]);
 
   useEffect(() => {
     form.setValue("exportScope", scope, {
@@ -157,7 +122,7 @@ export default function ExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger disabled={!isExportable} asChild>
+      <DialogTrigger disabled={forExportCount === 0} asChild>
         {children}
       </DialogTrigger>
 
@@ -174,7 +139,7 @@ export default function ExportDialog({
                 name="exporterId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Exporter</FormLabel>
+                    <FormLabel>Output format</FormLabel>
                     <FormControl>
                       <Select
                         defaultValue={field.value}
@@ -205,38 +170,10 @@ export default function ExportDialog({
                   <FormItem>
                     <FormLabel>Records to export</FormLabel>
                     <FormControl>
-                      <Select
+                      <ExportScopeDropdown
                         defaultValue={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select records to export..." />
-                        </SelectTrigger>
-
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectItem value="current">
-                              Current record
-                            </SelectItem>
-                            <SelectItem value="selected">
-                              Selected records
-                            </SelectItem>
-                            <SelectItem value="all">All records</SelectItem>
-                          </SelectGroup>
-
-                          <SelectGroup>
-                            <SelectLabel>Records tagged with</SelectLabel>
-                            {tags.map((tag) => (
-                              <SelectItem
-                                key={`tag_${tag.name}`}
-                                value={`tagged:${encodeURIComponent(tag.name)}`}
-                              >
-                                <TagDisplay tag={tag} />
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -250,7 +187,18 @@ export default function ExportDialog({
                   <FormItem>
                     <FormLabel>Filename</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter a filename" />
+                      <div className="flex">
+                        <Input
+                          {...field}
+                          placeholder="Enter a filename"
+                          className="flex-1 rounded-r-none"
+                        />
+                        <div className="rounded-r-md border-y border-r px-4 py-1 bg-gray-50">
+                          <span className="mt-0.5 block">
+                            {currentExporter?.fileExtension}
+                          </span>
+                        </div>
+                      </div>
                     </FormControl>
                     <FormDescription>
                       You may use template tags such as <code>{`{{id}}`}</code>{" "}
@@ -268,23 +216,24 @@ export default function ExportDialog({
           <Button
             onClick={() => {
               if (!currentExporter) return;
-              exportRecords({
+              exportImages({
                 exporter: currentExporter,
-                template,
-                records: recordsForExport,
-                filenameFormat: form.getValues().filenameFormat,
+                exportScope,
+                filenameFormat:
+                  form.getValues().filenameFormat +
+                  currentExporter.fileExtension,
                 exporterOptions: form.getValues().settings,
-                onGetRawTemplateInstanceValue: getRawTemplateInstanceValue,
-                uriHandlersRegistry: useUriHandlersStore.getState(),
-              }).then(({ filename, url }) => {
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = filename;
-                a.click();
+              })
+                .then(processExports)
+                .then(({ filename, url }) => {
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = filename;
+                  a.click();
 
-                onSuccess();
-                setOpen(false);
-              });
+                  onSuccess();
+                  setOpen(false);
+                });
             }}
           >
             Export

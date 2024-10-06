@@ -6,15 +6,19 @@
 import { z } from "zod";
 
 // - all: export all records
-export const exportScope = z.enum(["current", "selected", "all"]);
 export const taggedExportScope = z
   .string()
   .startsWith("tagged:")
   .and(z.custom<`tagged:${string}`>());
+export const exportScope = z
+  .enum(["current", "selected", "all"])
+  .or(taggedExportScope);
+
+export type ExportScope = z.infer<typeof exportScope>;
 
 export const outputExportSettingsSchema = z.object({
   exporterId: z.string(),
-  exportScope: exportScope.or(taggedExportScope),
+  exportScope: exportScope,
   filenameFormat: z.string(),
   settings: z.record(z.any()),
 });

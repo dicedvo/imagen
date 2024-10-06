@@ -440,7 +440,7 @@ function DataView({
                 </TagsDropdown>
 
                 <Button
-                  disabled={template == null}
+                  disabled={!template}
                   size="sm"
                   variant="ghost"
                   onClick={() => setCurrentRecordIndex(row.index)}

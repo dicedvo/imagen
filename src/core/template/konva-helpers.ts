@@ -67,9 +67,16 @@ export function autoFitText(textElement: Konva.Text) {
 
 const crossOriginImageCache = new Map<string, string>();
 
+/**
+ * Load an image from a URL or Blob and return an HTMLImageElement
+ *
+ * @param {Promise<string | Blob>} promise A promise that resolves to a URL or Blob
+ * @param {(el: HTMLImageElement) => void} onload A callback that is called when the image is loaded
+ * @returns {Promise<HTMLImageElement>} A promise that resolves to an HTMLImageElement
+ */
 export async function loadAsyncImage(
   promise: Promise<string | Blob>,
-  onload: (el: HTMLImageElement) => void,
+  onload?: (el: HTMLImageElement) => void,
 ): Promise<HTMLImageElement> {
   const src = await promise;
   let shouldDownloadImage = false;
@@ -103,12 +110,12 @@ export async function loadAsyncImage(
             reject(e);
           } else {
             resolve(img);
-            onload(img);
+            onload?.(img);
           }
         }
       } else {
         resolve(img);
-        onload(img);
+        onload?.(img);
       }
     };
 

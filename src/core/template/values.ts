@@ -3,11 +3,30 @@ import {
   Template,
   TemplateInstanceValues,
 } from "@/core/template/types";
-import { Liquid } from "liquidjs";
+import { Liquid, Tokenizer, Token, TokenKind } from "liquidjs";
 import { IRegistry } from "@/core/registries";
 import ImageGenerator from "@/core/image_generator";
 
 const engine = new Liquid();
+
+function getKind(val: Token) {
+  return val ? val.kind : -1;
+}
+
+export function isTextDynamic(text: string): boolean {
+  try {
+    const tok = new Tokenizer(text);
+    const tokens = tok.readTopLevelTokens();
+    for (const token of tokens) {
+      if (getKind(token) !== TokenKind.HTML) {
+        return true;
+      }
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
 
 export function renderTemplateText(
   text: string,
