@@ -3,10 +3,8 @@ import { DataTable } from "@/components/data-table/DataTable";
 import ExportDialog from "@/components/ExportDialog";
 import FieldEditorDialog from "@/components/FieldEditorDialog";
 import ImportDataMenu from "@/components/ImportDataMenu";
-import ManageFieldsDialog from "@/components/ManageFieldsDialog";
 import SearchBox from "@/components/SearchBox";
 import TagDisplay from "@/components/TagDisplay";
-import TagsDialog from "@/components/TagsDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -41,9 +39,7 @@ import {
   DownloadIcon,
   ImportIcon,
   PlusIcon,
-  SlidersHorizontalIcon,
   TagIcon,
-  TagsIcon,
   TrashIcon,
   X,
 } from "lucide-react";
@@ -568,7 +564,7 @@ export default function DataList() {
   }, [fields]);
 
   return (
-    <>
+    <div className="flex flex-col h-full w-full">
       <div className="h-full w-full">
         <div className="px-4 py-1 flex items-center justify-between">
           <p className="font-semibold text-sm">Data List</p>
@@ -584,20 +580,6 @@ export default function DataList() {
                 <span>Columns</span>
               </Button>
             </ColumnsDropdown>
-
-            <TagsDialog>
-              <Button size="sm" variant="ghost">
-                <TagsIcon className="mr-2" size={16} />
-                <span>Tags</span>
-              </Button>
-            </TagsDialog>
-
-            <ManageFieldsDialog>
-              <Button size="sm" variant="ghost">
-                <SlidersHorizontalIcon className="mr-2" size={16} />
-                <span>Manage Fields</span>
-              </Button>
-            </ManageFieldsDialog>
 
             <ImportDataMenu sources={dataSources}>
               <Button size="sm" variant="ghost">
@@ -723,6 +705,6 @@ export default function DataList() {
             />
           );
         })}
-    </>
+    </div>
   );
 }

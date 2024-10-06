@@ -1,4 +1,3 @@
-import InstalledPluginsDialog from "@/components/InstalledPluginsDialog";
 import Preview from "@/components/Preview";
 import TemplateEditor from "@/components/TemplateEditor";
 import TemplateImportDialog from "@/components/TemplateImportDialog";
@@ -11,7 +10,7 @@ import emitter from "@/lib/event-bus";
 import useRecordsStore from "@/stores/records_store";
 import { useImageGeneratorsStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
-import { PlugIcon, UploadIcon } from "lucide-react";
+import { UploadIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -92,13 +91,6 @@ export default function WorkArea() {
             <p className="font-semibold text-sm">Editor</p>
 
             <div className="space-x flex items-center">
-              <InstalledPluginsDialog>
-                <Button size="sm" variant="ghost">
-                  <PlugIcon className="mr-2" />
-                  <span>Plugins</span>
-                </Button>
-              </InstalledPluginsDialog>
-
               <Button
                 size="sm"
                 variant="ghost"
