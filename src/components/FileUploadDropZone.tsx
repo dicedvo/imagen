@@ -1,4 +1,4 @@
-import { UploadProgressMap, useUploadProgressMap } from "@/lib/progress";
+import { UploadProgressMap } from "@/lib/progress";
 import React, { useEffect, useMemo, useState } from "react";
 import { Accept, useDropzone } from "react-dropzone";
 import mime from "mime";
@@ -74,15 +74,15 @@ export default function FileUploadDropZone({
       onUpload(files, {
         entries: {},
         isDone: true,
-        get(file) {
+        get(_file) {
           return {
             message: "Uploading...",
             progress: 100,
-            update(progress, message) {},
+            update(_progress, _message) {},
           };
         },
         resetAll() {},
-        update(file, progress, message) {},
+        update(_file, _progress, _message) {},
       });
 
       setUploadState("idle");

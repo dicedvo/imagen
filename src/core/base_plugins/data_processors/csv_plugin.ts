@@ -1,9 +1,5 @@
 import { Plugin } from "@/core/plugin_system";
-import {
-  DataProcessor,
-  SourceProcessedFile,
-  DataSourceRecord,
-} from "@/core/data";
+import { DataProcessor, SourceProcessedFile } from "@/core/data";
 import Papa from "papaparse";
 
 class CSVImporter implements DataProcessor {

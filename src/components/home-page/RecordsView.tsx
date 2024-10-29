@@ -14,12 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  DataRecord,
-  DataSource,
-  DataSourceRecord,
-  defaultIdGenerator,
-} from "@/core/data";
+import { DataRecord, DataSource, DataSourceRecord } from "@/core/data";
 import { Field, isSchemaEqual, Schema } from "@/lib/schema";
 import useSchemaStore from "@/stores/schema_store";
 import useDataStore, {

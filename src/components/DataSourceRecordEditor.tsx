@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import useSchemaStore, { useSchemaFieldTypeStore } from "@/stores/schema_store";
+import { useSchemaFieldTypeStore } from "@/stores/schema_store";
 import { cn } from "@/lib/utils";
 import FormFieldRenderer from "./FormFieldRenderer";
 import {

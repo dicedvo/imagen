@@ -7,7 +7,6 @@ import { useUriHandlersStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
 import useDataStore from "@/stores/data_store";
 import { RenderLayerFilter } from "@/core/template/renderer";
-import emitter, { Events } from "./event-bus";
 
 export function useExport() {
   const template = useTemplateStore(useShallow((state) => state.template));

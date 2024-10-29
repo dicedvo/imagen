@@ -1,4 +1,3 @@
-import { BinaryIcon } from "lucide-react";
 import { createSchemaFieldType, SchemaValidationError } from "@/core/schema";
 import { Input } from "@/components/ui/input";
 
