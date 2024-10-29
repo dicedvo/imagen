@@ -54,11 +54,3 @@ export function useExport() {
     exportImages,
   };
 }
-
-export function useAlertDialog() {
-  return {
-    showAlertDialog(details: Events["onTriggerAlertDialog"]) {
-      emitter.emit("onTriggerAlertDialog", details);
-    },
-  };
-}

@@ -1,7 +1,6 @@
 import AddEntryDialog from "@/components/AddEntryDialog";
 import { DataTable } from "@/components/data-table/DataTable";
 import ExportDialog from "@/components/ExportDialog";
-import FieldEditorDialog from "@/components/FieldEditorDialog";
 import ImportDataMenu from "@/components/ImportDataMenu";
 import SearchBox from "@/components/SearchBox";
 import TagDisplay from "@/components/TagDisplay";
@@ -44,7 +43,7 @@ import { useShallow } from "zustand/react/shallow";
 import MapFieldsDialog from "../MapFieldsDialog";
 import SourceProvidersDialog from "../SourceProvidersDialog";
 import { renderTemplateText } from "@/core/template/values";
-import { useAlertDialog } from "@/lib/hooks";
+import { showAlertDialog } from "@/lib/utils";
 
 function determineColumns<SchemaType extends object = Record<string, unknown>>(
   store: DataStoreState<SchemaType>,
@@ -463,7 +462,6 @@ export default function DataList() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const recordsSearchIndex = useRecordsSearchIndex();
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
-  const { showAlertDialog } = useAlertDialog();
 
   const [sources, records] = useDataStore(
     useShallow((state) => [state.sources, state.records]),
