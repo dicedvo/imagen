@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataRecord, DataSource } from "@/core/data";
-import { Field, Schema } from "@/lib/schema";
+import { Field, isSchemaEqual, Schema } from "@/lib/schema";
 import useSchemaStore from "@/stores/schema_store";
 import useDataStore, {
   DataStoreState,
@@ -386,7 +386,7 @@ function RecordsView({
 
   return (
     <DataTable
-      className="border-y"
+      className="border-y overflow-y-auto"
       data={records}
       rowSelection={selectedRecordIndices
         .map((idx) => idx)
@@ -524,7 +524,7 @@ export default function DataList() {
     );
   }, [records, filters, searchQuery]);
 
-  const [sourcesToMapStack, setColumnsToMapStack] = useState<
+  const [sourcesToMapStack, setSourcesToMapStack] = useState<
     DataSource<Schema>[]
   >([]);
 
@@ -550,29 +550,30 @@ export default function DataList() {
 
               if (firstSource.schema.fields.length === 0) return;
               setSchema(structuredClone(firstSource.schema));
-
-              updateSource({
-                ...firstSource,
-                systemSchemaValues: firstSource.schema.fields
-                  .map<[string, unknown]>((f) => [f.key, f.value!])
-                  .reduce<Record<string, unknown>>(
-                    (acc, [key, value]) => ({
-                      ...acc,
-                      [key]: value,
-                    }),
-                    {},
-                  ),
-              });
-
               conformRecordsToSchema(firstSource.id, firstSource.schema);
 
               if (sources.length > 1) {
-                setColumnsToMapStack(sources.slice(1));
+                setSourcesToMapStack(sources.slice(1));
               }
             },
           },
         },
       });
+    } else if (currentSchema) {
+      const newSourcesToMap: DataSource<Schema>[] = [];
+      for (const source of sources) {
+        if (isSchemaEqual(source.schema, currentSchema)) {
+          conformRecordsToSchema(source.id, currentSchema);
+          continue;
+        }
+        newSourcesToMap.push(source);
+      }
+
+      if (newSourcesToMap.length > 0) {
+        setTimeout(() => {
+          setSourcesToMapStack(newSourcesToMap);
+        }, 250);
+      }
     }
   };
 
@@ -690,18 +691,15 @@ export default function DataList() {
         }
         currentSchema={currentSchema}
         onSuccess={(mappings) => {
-          // setTimeout to 200ms, pop the columnsToMapStack, and then set the mappings
-          setTimeout(() => {
-            const lastSource = sourcesToMapStack[sourcesToMapStack.length - 1];
-            if (!lastSource) return;
-            updateSource({
-              ...lastSource,
-              systemSchemaValues: mappings as Record<string, unknown>,
-            });
+          const lastSource = sourcesToMapStack[sourcesToMapStack.length - 1];
+          if (!lastSource) return;
+          updateSource({
+            ...lastSource,
+            systemSchemaValues: mappings as Record<string, unknown>,
+          });
 
-            conformRecordsToSchema(lastSource.id, currentSchema);
-            setColumnsToMapStack((prev) => prev.slice(0, -1));
-          }, 200);
+          conformRecordsToSchema(lastSource.id, currentSchema);
+          setSourcesToMapStack((prev) => prev.slice(0, -1));
         }}
       />
 

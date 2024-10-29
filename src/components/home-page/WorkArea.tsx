@@ -9,6 +9,7 @@ import {
 } from "@/core/template/values";
 import useDataStore from "@/stores/data_store";
 import { useImageGeneratorsStore } from "@/stores/registry_store";
+import useSchemaStore from "@/stores/schema_store";
 import useTemplateStore from "@/stores/template_store";
 import { UploadIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -21,9 +22,10 @@ export default function WorkArea() {
   );
 
   const imageGenerators = useImageGeneratorsStore();
-  const [currentRecord, updateRecord] = useDataStore(
-    useShallow((state) => [state.currentRecord(), state.updateRecord]),
+  const currentRecord = useDataStore(
+    useShallow((state) => state.currentRecord()),
   );
+  const updateRecord = useDataStore(useShallow((state) => state.updateRecord));
 
   const previewTemplateInstanceValues = useMemo(() => {
     if (!template || !currentRecord || !currentRecord.id) {

@@ -41,8 +41,7 @@ export default function FieldEditorDialog({
   onSave: (field: Field) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [autoGenerateKey, setAutoGenerateKey] = useState(true);
-
+  const [autoGenerateKey, setAutoGenerateKey] = useState(false);
   const schemaFieldTypes = useSchemaFieldTypeStore((state) => state.items);
 
   const form = useForm<Field>({
@@ -57,17 +56,24 @@ export default function FieldEditorDialog({
     },
   });
 
-  const primaryKey = form.watch("primary_key", false);
-  const propertyKey = form.watch("key", "");
-  const propertyName = form.watch("name", "");
+  const [propertyKey, propertyName, primaryKey] = form.watch(
+    ["key", "name", "primary_key"],
+    {
+      key: undefined,
+      name: undefined,
+      primary_key: false,
+    },
+  );
 
   useEffect(() => {
     if (!field) {
-      form.reset();
       return;
     }
+
     form.reset(field);
-    setAutoGenerateKey(field.key.length === 0);
+    if (field.key.length === 0 || /\s/.test(field.key)) {
+      setAutoGenerateKey(true);
+    }
   }, [field]);
 
   useEffect(() => {
@@ -77,6 +83,13 @@ export default function FieldEditorDialog({
   }, [primaryKey]);
 
   useEffect(() => {
+    if (
+      typeof propertyKey === "undefined" &&
+      typeof propertyName === "undefined"
+    ) {
+      return;
+    }
+
     if (propertyKey.length !== 0) {
       const isKeyDirty = form.getFieldState("key").isDirty;
       if (isKeyDirty || !autoGenerateKey) {
@@ -113,8 +126,6 @@ export default function FieldEditorDialog({
                   console.log("Saving field", updatedField);
                   onSave(updatedField);
                   setOpen(false);
-                  form.reset();
-                  setAutoGenerateKey(true);
                 } catch (e) {
                   if (e instanceof FieldSchemaValidationError) {
                     for (const [key, message] of Object.entries(e.errors)) {

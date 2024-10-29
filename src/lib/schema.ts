@@ -139,6 +139,7 @@ export function conformRecordDataToSchema(
       if (!foundSource) {
         return r;
       }
+      console.log("foundSource", foundSource);
       cachedSources[sourceId] = foundSource;
     }
 
@@ -165,6 +166,25 @@ export function conformRecordDataToSchema(
       data,
     };
   });
+}
+
+export function isSchemaEqual(aSchema: Schema, bSchema: Schema): boolean {
+  if (aSchema.fields.length !== bSchema.fields.length) {
+    return false;
+  }
+
+  for (let i = 0; i < aSchema.fields.length; i++) {
+    const aField = aSchema.fields[i];
+    const bField = bSchema.fields[i];
+
+    if (aField.key !== bField.key) {
+      return false;
+    } else if (aField.type !== bField.type) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export default FieldSchema;

@@ -57,6 +57,19 @@ const useSchemaStore = create<SchemaState>((set) => ({
         throw new Error(`Field with key ${field.key} not found`);
       }
 
+      // Update the value of the field if it's the same as the key
+      // Example:
+      // old key: "name"
+      // old value: "{{name}}"
+      // new key: "naMe""
+      // expected value: "{{naMe}}"
+      if (
+        field.value === state.currentSchema.fields[index].value &&
+        field.value === `{{${state.currentSchema.fields[index].key}}}`
+      ) {
+        field.value = `{{${field.key}}}`;
+      }
+
       const newFields = [...state.currentSchema.fields];
       newFields[index] = field;
 

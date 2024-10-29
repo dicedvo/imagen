@@ -209,14 +209,12 @@ export default function SourcesList() {
           if (!sourceToMap) return;
 
           // setTimeout to 200ms, pop the columnsToMapStack, and then set the mappings
-          setTimeout(() => {
-            updateSource({
-              ...sourceToMap,
-              systemSchemaValues: mappings as Record<string, unknown>,
-            });
-            conformRecordsToSchema(sourceToMap.id, currentSchema);
-            setSourceToMap(null);
-          }, 200);
+          updateSource({
+            ...sourceToMap,
+            systemSchemaValues: mappings as Record<string, unknown>,
+          });
+          conformRecordsToSchema(sourceToMap.id, currentSchema);
+          setSourceToMap(null);
         }}
       />
     </>

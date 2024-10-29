@@ -134,6 +134,10 @@ export function defaultIdGenerator(): string {
 }
 
 export function transformRecordKey(key: string) {
+  if (!/\s/.test(key)) {
+    // Skip keys with no whitespace
+    return key;
+  }
   return snakeCase(key);
 }
 

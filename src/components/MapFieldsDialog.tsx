@@ -92,15 +92,18 @@ export default function MapSchemaDialog({
           <form
             className="flex flex-col divide-y"
             onSubmit={form.handleSubmit((mappings) => {
-              onSuccess(
-                Object.entries(mappings).reduce(
-                  (pv, [field, { option, value }]) => ({
-                    ...pv,
-                    [field]: value ?? `{{${option}}}`,
-                  }),
-                  {},
-                ),
-              );
+              // setTimeout to 200ms to avoid any flickering
+              setTimeout(() => {
+                onSuccess(
+                  Object.entries(mappings).reduce(
+                    (pv, [field, { option, value }]) => ({
+                      ...pv,
+                      [field]: value ?? `{{${option}}}`,
+                    }),
+                    {},
+                  ),
+                );
+              }, 200);
             })}
           >
             <div className="flex text-sm">

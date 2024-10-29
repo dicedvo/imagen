@@ -144,6 +144,7 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
         const newSources = [...state.sources];
         newSources[index] = source;
 
+        console.log(source);
         if (fastDeepEqual(state.sources[index].records, source.records)) {
           return {
             sources: newSources,
@@ -306,9 +307,28 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
     },
     conformRecordsToSchema: (sourceId, schema) => {
       set((state) => {
-        const sourceIdx = state.sourceIndex.get(sourceId);
-        if (typeof sourceIdx === "undefined") {
+        const source = state.getSource(sourceId);
+        if (!source) {
           return state;
+        }
+
+        // Check if "systemSchemaValues" is present. if not, inject it.
+        if (
+          !source.systemSchemaValues ||
+          Object.keys(source.systemSchemaValues).length === 0
+        ) {
+          state.updateSource({
+            ...source,
+            systemSchemaValues: schema.fields
+              .map<[string, unknown]>((f) => [f.key, f.value!])
+              .reduce<Record<string, unknown>>(
+                (acc, [key, value]) => ({
+                  ...acc,
+                  [key]: value,
+                }),
+                {},
+              ),
+          });
         }
 
         const conformedRecords = conformRecordDataToSchema(
@@ -319,6 +339,8 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
           ),
           schema,
         );
+
+        console.log(conformedRecords);
 
         return {
           records: state.records.map((record) => {
