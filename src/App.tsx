@@ -16,6 +16,7 @@ import {
   TagsIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import EBAlertDialog from "./components/EBAlertDialog";
 
 function App() {
   const pluginRegistry = usePluginStore();
@@ -25,47 +26,50 @@ function App() {
   }, []);
 
   return (
-    <main className="font-sans flex flex-col h-screen">
-      <Header />
+    <>
+      <main className="font-sans flex flex-col h-screen">
+        <Header />
 
-      <section className="flex flex-1 items-stretch overflow-hidden">
-        <div className="w-1/2 border-r">
-          <Tabs
-            items={[
-              {
-                title: "Records",
-                icon: FilesIcon,
-                Component: RecordsView,
-              },
-              {
-                title: "Tags",
-                icon: TagsIcon,
-                Component: TagsList,
-              },
-              {
-                title: "Sources",
-                icon: DatabaseIcon,
-                Component: SourcesList,
-              },
-              {
-                title: "Schema",
-                icon: SlidersHorizontalIcon,
-                Component: SchemaEditor,
-              },
-              {
-                title: "Plugins",
-                icon: PlugIcon,
-                Component: PluginsList,
-              },
-            ]}
-          />
-        </div>
+        <section className="flex flex-1 items-stretch overflow-hidden">
+          <div className="w-1/2 border-r">
+            <Tabs
+              items={[
+                {
+                  title: "Records",
+                  icon: FilesIcon,
+                  Component: RecordsView,
+                },
+                {
+                  title: "Tags",
+                  icon: TagsIcon,
+                  Component: TagsList,
+                },
+                {
+                  title: "Sources",
+                  icon: DatabaseIcon,
+                  Component: SourcesList,
+                },
+                {
+                  title: "Schema",
+                  icon: SlidersHorizontalIcon,
+                  Component: SchemaEditor,
+                },
+                {
+                  title: "Plugins",
+                  icon: PlugIcon,
+                  Component: PluginsList,
+                },
+              ]}
+            />
+          </div>
 
-        <div className="w-1/2">
-          <WorkArea />
-        </div>
-      </section>
-    </main>
+          <div className="w-1/2">
+            <WorkArea />
+          </div>
+        </section>
+      </main>
+      <EBAlertDialog />
+    </>
   );
 }
 

@@ -43,17 +43,8 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import MapFieldsDialog from "../MapFieldsDialog";
 import SourceProvidersDialog from "../SourceProvidersDialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../ui/alert-dialog";
 import { renderTemplateText } from "@/core/template/values";
+import { useAlertDialog } from "@/lib/hooks";
 
 function determineColumns<SchemaType extends object = Record<string, unknown>>(
   store: DataStoreState<SchemaType>,
@@ -472,8 +463,7 @@ export default function DataList() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const recordsSearchIndex = useRecordsSearchIndex();
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
-  const [promptFirstTimeSchemaCreation, setPromptFirstTimeSchemaCreation] =
-    useState(false);
+  const { showAlertDialog } = useAlertDialog();
 
   const [sources, records] = useDataStore(
     useShallow((state) => [state.sources, state.records]),
@@ -539,8 +529,38 @@ export default function DataList() {
     sources: DataSource<Schema>[];
   }) => {
     addSources(...sources);
+
     if (currentSchema.fields.length === 0) {
-      setPromptFirstTimeSchemaCreation(true);
+      showAlertDialog({
+        title: "Schema Warning",
+        description:
+          "You have not created a schema yet. The schema of your first imported source will be used instead.",
+        actions: {
+          confirm: {
+            label: "Continue",
+            onClick() {
+              if (sources.length === 0) return;
+              const firstSource = sources[0];
+
+              if (firstSource.schema.fields.length === 0) return;
+              setSchema(firstSource.schema);
+
+              updateSource({
+                ...firstSource,
+                systemSchemaValues: firstSource.schema.fields
+                  .map<[string, unknown]>((f) => [f.key, f.value!])
+                  .reduce<Record<string, unknown>>(
+                    (acc, [key, value]) => ({
+                      ...acc,
+                      [key]: value,
+                    }),
+                    {},
+                  ),
+              });
+            },
+          },
+        },
+      });
     }
   };
 
@@ -661,52 +681,6 @@ export default function DataList() {
       />
 
       <SourceProvidersDialog onImportFinished={handleImportFinished} />
-
-      {promptFirstTimeSchemaCreation && (
-        <AlertDialog
-          open={promptFirstTimeSchemaCreation}
-          onOpenChange={setPromptFirstTimeSchemaCreation}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                You have not created a schema yet. The schema of your first
-                imported source will be used instead.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (sources.length === 0) return;
-                  const firstSource = sources[0];
-
-                  if (firstSource.schema.fields.length === 0) return;
-                  setSchema(firstSource.schema);
-
-                  updateSource({
-                    ...firstSource,
-                    systemSchemaValues: firstSource.schema.fields
-                      .map<[string, unknown]>((f) => [f.key, f.value!])
-                      .reduce<Record<string, unknown>>(
-                        (acc, [key, value]) => ({
-                          ...acc,
-                          [key]: value,
-                        }),
-                        {},
-                      ),
-                  });
-
-                  setPromptFirstTimeSchemaCreation(false);
-                }}
-              >
-                Continue
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
   );
 }
