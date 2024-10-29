@@ -72,7 +72,9 @@ export function valuesFromTemplate(
       if (cv.type === "image_generator") {
         const generator = imageGenerators.get(cv.generator);
         pv[key] = {
-          ...(cv.value ?? generator?.defaultOptions() ?? {}),
+          ...(typeof cv.value === "object"
+            ? cv.value
+            : (generator?.defaultOptions() ?? {})),
           outputUri: "",
         };
       } else if (cv.type === "group") {
