@@ -1,33 +1,16 @@
 import { Field } from "@/lib/schema";
-import { FC } from "react";
 import { ControllerRenderProps, FieldValues } from "react-hook-form";
-import { SchemaFieldRendererProps } from "./schema-field-renderers/types";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 
 export default function FormFieldRenderer<T extends FieldValues = FieldValues>({
   field,
-  rename,
-  customComponents,
   ...props
 }: {
   field: Field;
-  rename?: Record<string, string>;
-  customComponents?: Record<string, FC<SchemaFieldRendererProps>>;
 } & Omit<ControllerRenderProps<T>, "ref">) {
   const name = field.name;
-  const registeredName = rename?.[name] ?? name;
   const placeholder = (field.options.placeholder as string | undefined) ?? "";
-
-  if (customComponents && customComponents[name]) {
-    const CustomFormRenderer = customComponents[name];
-    return (
-      <CustomFormRenderer
-        field={{ ...field, name: registeredName }}
-        {...props}
-      />
-    );
-  }
 
   // if (field.type === "select") {
   //   const labels = (field.options.labels as Record<string, string>) ?? {};

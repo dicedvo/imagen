@@ -7,34 +7,38 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import { DataRecord } from "@/core/data";
-import DataRecordEditor from "./DataRecordEditor";
+import { DataSourceRecord, defaultIdGenerator } from "@/core/data";
+import DataSourceRecordEditor from "./DataSourceRecordEditor";
 import { Button } from "./ui/button";
+import { Schema } from "@/lib/schema";
 
 export default function AddEntryDialog({
+  schema,
   children,
   onSuccess,
 }: {
+  schema: Schema | null;
   children: ReactNode;
-  onSuccess: (data: DataRecord) => void;
+  onSuccess: (data: Omit<DataSourceRecord, "sourceId">) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [record, setRecord] = useState<DataRecord>({
-    id: "",
-    sourceRecordId: "",
-    tags: [],
-    templateValues: {},
+  const [record, setRecord] = useState<Pick<DataSourceRecord, "data">>({
     data: {},
   });
 
-  const handleSubmit = (data: DataRecord) => {
-    onSuccess(data);
+  const handleSubmit = (data: Pick<DataSourceRecord, "data">) => {
+    onSuccess({
+      id: defaultIdGenerator(),
+      ...data,
+    });
     setOpen(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger disabled={!schema || schema.fields.length === 0} asChild>
+        {children}
+      </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
@@ -42,7 +46,11 @@ export default function AddEntryDialog({
         </DialogHeader>
 
         <div>
-          <DataRecordEditor record={record} onChange={setRecord} />
+          <DataSourceRecordEditor
+            schema={schema!}
+            record={record}
+            onChange={setRecord}
+          />
         </div>
 
         <DialogFooter className="flex justify-end">

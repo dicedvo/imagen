@@ -1,5 +1,6 @@
 import { BinaryIcon } from "lucide-react";
 import { createSchemaFieldType } from "@/core/schema";
+import { Input } from "@/components/ui/input";
 
 export interface BooleanSchemaSettings {
   default: boolean;
@@ -24,7 +25,7 @@ const booleanSchemaType = createSchemaFieldType<BooleanSchemaSettings, boolean>(
     render({ value, onChange }) {
       // Checkbox
       return (
-        <input
+        <Input
           type="checkbox"
           checked={value}
           onChange={(e) => onChange(e.target.checked)}

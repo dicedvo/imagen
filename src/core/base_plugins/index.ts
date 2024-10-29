@@ -2,6 +2,7 @@ import { IPluginRegistry } from "@/core/registries";
 
 // Source Providers
 import filePlugin from "./source_providers/file_plugin";
+import virtualPlugin from "./source_providers/virtual_plugin";
 
 // Data Processors
 import csvPlugin from "./data_processors/csv_plugin";
@@ -24,8 +25,9 @@ import baseSchemaTypesPlugin from "./schema_field_types/base_schema_types";
 export function loadBasePlugins(load: IPluginRegistry["load"]) {
   load(
     [
-      csvPlugin,
       filePlugin,
+      virtualPlugin,
+      csvPlugin,
       jsonPlugin,
       qrCodePlugin,
       dynamicImagePlugin,

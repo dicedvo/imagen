@@ -1,5 +1,6 @@
 import { TypeIcon } from "lucide-react";
 import { createSchemaFieldType, SchemaValidationError } from "@/core/schema";
+import { Input } from "@/components/ui/input";
 
 export interface TextSchemaSettings {
   placeholder: string;
@@ -56,12 +57,15 @@ const textSchemaType = createSchemaFieldType<TextSchemaSettings, string>({
       }
     }
   },
-  render({ value, onChange }) {
+  render({ value, onChange, settings }) {
     return (
-      <input
+      <Input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={settings.placeholder}
+        minLength={settings.minLength}
+        maxLength={settings.maxLength}
       />
     );
   },

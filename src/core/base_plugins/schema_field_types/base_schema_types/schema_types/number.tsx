@@ -1,5 +1,6 @@
 import { BinaryIcon } from "lucide-react";
 import { createSchemaFieldType, SchemaValidationError } from "@/core/schema";
+import { Input } from "@/components/ui/input";
 
 export interface NumberSchemaSettings {
   placeholder: string;
@@ -55,7 +56,7 @@ const numberSchemaType = createSchemaFieldType<NumberSchemaSettings, number>({
   },
   render({ value, onChange }) {
     return (
-      <input
+      <Input
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.valueAsNumber)}

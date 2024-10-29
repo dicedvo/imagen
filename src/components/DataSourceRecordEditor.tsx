@@ -1,9 +1,9 @@
-import { DataRecord } from "@/core/data";
+import { DataSourceRecord } from "@/core/data";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import useSchemaStore from "@/stores/schema_store";
+import useSchemaStore, { useSchemaFieldTypeStore } from "@/stores/schema_store";
 import { cn } from "@/lib/utils";
 import FormFieldRenderer from "./FormFieldRenderer";
 import {
@@ -15,44 +15,48 @@ import {
   FormMessage,
 } from "./ui/form";
 import deepEqual from "deep-eql";
+import { Schema } from "@/lib/schema";
 
-const dataRecordSchema = z.record(z.unknown());
+const dataRecordSchema = z.object({
+  data: z.record(z.unknown()),
+});
 
-export default function DataRecordEditor({
+export default function DataSourceRecordEditor({
   record = null,
+  schema,
   onChange,
   className,
 }: {
-  record: DataRecord | null;
-  onChange: (record: DataRecord) => void;
+  schema: Schema;
+  record: Pick<DataSourceRecord, "data"> | null;
+  onChange: (record: Pick<DataSourceRecord, "data">) => void;
   className?: string;
 }) {
   const form = useForm<z.infer<typeof dataRecordSchema>>({
     resolver: zodResolver(dataRecordSchema),
-    defaultValues: record ?? { __id: "" },
+    defaultValues: record ?? { data: {} },
     mode: "onChange",
   });
 
-  const fields = useSchemaStore((state) => state.currentSchema.fields);
-  // const updatedRecord = form.watch();
+  const getSchemaFieldType = useSchemaFieldTypeStore((state) => state.get);
 
   useEffect(() => {
     if (!record) {
       form.reset(
-        Object.values(fields)
+        Object.values(schema.fields)
           .map((field) => field.key)
-          .reduce<DataRecord>(
+          .reduce<Pick<DataSourceRecord, "data">>(
             (pv, cv) => {
-              pv[cv] = "";
+              pv.data[cv] = "" as string;
               return pv;
             },
-            { __id: "" },
+            { data: {} },
           ),
       );
     } else {
       form.reset(record);
     }
-  }, [record, fields]);
+  }, [record, schema]);
 
   useEffect(() => {
     try {
@@ -64,13 +68,13 @@ export default function DataRecordEditor({
         // console.log(record, form.getValues(), deepEqual(record, form.getValues()));
         return;
       }
-      onChange(form.getValues() as DataRecord);
+      onChange(form.getValues() as DataSourceRecord);
     } catch (e) {
       console.error(e);
     }
   }, [record, form.formState]);
 
-  if (fields.length === 0 || !record) {
+  if (schema.fields.length === 0 || !record) {
     return (
       <div
         className={cn(
@@ -86,20 +90,28 @@ export default function DataRecordEditor({
   return (
     <div className={cn(className, "text-left w-full flex flex-col space-y-3")}>
       <Form {...form}>
-        {fields.map((recordField) => (
+        {schema.fields.map((recordField) => (
           <FormField
             key={`field_${recordField.key}`}
             control={form.control}
-            name={recordField.key}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{recordField.name}</FormLabel>
-                <FormControl>
-                  <FormFieldRenderer field={recordField} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            name={`data.${recordField.key}`}
+            render={({ field }) => {
+              const schemaFieldType = getSchemaFieldType(recordField.type);
+              const Component = schemaFieldType?.render;
+              return (
+                <FormItem>
+                  <FormLabel>{recordField.name}</FormLabel>
+                  <FormControl>
+                    {schemaFieldType && Component ? (
+                      <Component settings={recordField.options} {...field} />
+                    ) : (
+                      <FormFieldRenderer field={recordField} {...field} />
+                    )}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         ))}
       </Form>

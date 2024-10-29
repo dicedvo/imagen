@@ -14,7 +14,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DataRecord, DataSource } from "@/core/data";
+import {
+  DataRecord,
+  DataSource,
+  DataSourceRecord,
+  defaultIdGenerator,
+} from "@/core/data";
 import { Field, isSchemaEqual, Schema } from "@/lib/schema";
 import useSchemaStore from "@/stores/schema_store";
 import useDataStore, {
@@ -479,10 +484,9 @@ export default function DataList() {
     ]),
   );
 
-  const [addRecords, removeRecord, setSelectedRecordIndices, selectedRecords] =
+  const [removeRecord, setSelectedRecordIndices, selectedRecords] =
     useDataStore(
       useShallow((state) => [
-        state.addRecords,
         state.removeRecord,
         state.setSelectedRecordIndices,
         state.selectedRecords(),
@@ -610,12 +614,35 @@ export default function DataList() {
               </Button>
             </ImportDataMenu>
 
-            <AddEntryDialog onSuccess={addRecords}>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={currentSchema.fields.length === 0}
-              >
+            <AddEntryDialog
+              schema={currentSchema}
+              onSuccess={(sourceRecord) => {
+                if (!dataStore.getSource("virtual")) {
+                  // Create a virtual data source
+                  addSources({
+                    id: "virtual",
+                    name: "Virtual Source",
+                    sourceProviderId: "virtual",
+                    records: [],
+                    schema: currentSchema,
+                    systemSchemaValues: {},
+                  });
+
+                  conformRecordsToSchema("virtual", currentSchema);
+                  (sourceRecord as DataSourceRecord).sourceId = "virtual";
+                }
+
+                const virtualSource = dataStore.getSource("virtual")!;
+                updateSource({
+                  ...virtualSource,
+                  records: [
+                    ...virtualSource.records,
+                    sourceRecord as DataSourceRecord,
+                  ],
+                });
+              }}
+            >
+              <Button size="sm" variant="ghost">
                 <PlusIcon className="mr-2" size={16} />
                 <span>Add Entry</span>
               </Button>

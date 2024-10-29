@@ -88,11 +88,7 @@ export default function SourcesList() {
                     }}
                   >
                     <src.icon className="mr-2 h-4 w-4" />
-                    <span>
-                      {typeof src.importFromLabel === "function"
-                        ? src.importFromLabel({})
-                        : src.importFromLabel}
-                    </span>
+                    <span>{src.name}</span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
