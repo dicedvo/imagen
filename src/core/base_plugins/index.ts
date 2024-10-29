@@ -1,8 +1,10 @@
 import { IPluginRegistry } from "@/core/registries";
 
-// Data Importers
+// Source Providers
+import filePlugin from "./source_providers/file_plugin";
+
+// Data Processors
 import csvPlugin from "./data_processors/csv_plugin";
-import filePlugin from "./data_sources/file_plugin";
 import jsonPlugin from "./data_processors/json_plugin";
 
 // Image Generators
@@ -16,6 +18,9 @@ import base64HandlerPlugin from "./uri_handlers/base64_handler_plugin";
 // Output Exporters
 import imageExporterPlugin from "./output_exporters/image_exporter_plugin";
 
+// Schema Field Types
+import baseSchemaTypesPlugin from "./schema_field_types/base_schema_types";
+
 export function loadBasePlugins(load: IPluginRegistry["load"]) {
   load(
     [
@@ -27,6 +32,7 @@ export function loadBasePlugins(load: IPluginRegistry["load"]) {
       httpHandlerPlugin,
       base64HandlerPlugin,
       imageExporterPlugin,
+      baseSchemaTypesPlugin,
     ],
     true,
   );

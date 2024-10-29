@@ -16,7 +16,7 @@ import { useImageGeneratorsStore } from "@/stores/registry_store";
 import { ImageGeneratorValue } from "@/core/image_generator";
 import { TemplateElement } from "@/core/template/types";
 import { compileTemplateValues } from "@/core/template/values";
-import useRecordsStore from "@/stores/records_store";
+import useDataStore from "@/stores/data_store";
 
 const formSettingsSchema = z.record(z.unknown());
 
@@ -57,7 +57,7 @@ export default function ImageGeneratorSettingsModal({
       {
         options: rawOptions,
       },
-      useRecordsStore.getState().currentRecord() ?? {},
+      useDataStore.getState().currentRecord()?.data ?? {},
     );
 
     console.log(options);

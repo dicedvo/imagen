@@ -56,33 +56,46 @@ export default function FileUploadDropZone({
     },
   });
 
-  const progress = useUploadProgressMap();
+  // const progress = useUploadProgressMap();
 
   useEffect(() => {
     return () => {
       setUploadState("idle");
       setFiles([]);
-      progress.resetAll();
+      // progress.resetAll();
     };
   }, []);
 
   useEffect(() => {
     if (uploadState === "uploading") {
-      for (const file of files) {
-        progress.update(file.name, 0, "Uploading...");
-      }
+      // for (const file of files) {
+      //   progress.update(file.name, 0, "Uploading...");
+      // }
+      onUpload(files, {
+        entries: {},
+        isDone: true,
+        get(file) {
+          return {
+            message: "Uploading...",
+            progress: 100,
+            update(progress, message) {},
+          };
+        },
+        resetAll() {},
+        update(file, progress, message) {},
+      });
 
-      onUpload(files, progress);
+      setUploadState("idle");
     } else {
-      progress.resetAll();
+      // progress.resetAll();
     }
   }, [files, uploadState]);
 
-  useEffect(() => {
-    if (progress.isDone) {
-      setUploadState("idle");
-    }
-  }, [progress.isDone]);
+  // useEffect(() => {
+  //   if (progress.isDone) {
+  //     setUploadState("idle");
+  //   }
+  // }, [progress.isDone]);
 
   return (
     <>
@@ -124,7 +137,8 @@ export default function FileUploadDropZone({
                 {uploadState === "uploading" && (
                   <Progress
                     className="w-32"
-                    value={progress.entries[file.name]?.progress || 0}
+                    // value={progress.entries[file.name]?.progress || 0}
+                    value={100}
                   />
                 )}
 

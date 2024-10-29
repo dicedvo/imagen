@@ -1,12 +1,11 @@
 import { Plugin } from "@/core/plugin_system";
-import { DataProcessor, DataRecord, SourceInput } from "@/core/data";
-import { UploadProgress } from "@/lib/progress";
+import { DataProcessor, SourceProcessedFile } from "@/core/data";
 
 class JSONImporter implements DataProcessor {
   id = "json";
   supportedFileTypes = ["application/json"];
 
-  checkData(data: unknown): DataRecord[] {
+  checkData(data: unknown): Record<string, unknown>[] {
     if (!data) {
       throw new Error("Data is empty");
     } else if (!Array.isArray(data)) {
@@ -17,20 +16,14 @@ class JSONImporter implements DataProcessor {
     return data;
   }
 
-  async process(
-    data: SourceInput,
-    progress: UploadProgress,
-  ): Promise<DataRecord[]> {
+  async process({
+    data,
+  }: SourceProcessedFile): Promise<Record<string, unknown>[]> {
     if (data instanceof File) {
       const text = await data.text();
-      const parsed = this.checkData(JSON.parse(text));
-      progress.update(100, "Imported " + parsed.length + " records");
-      return parsed;
+      return this.checkData(JSON.parse(text));
     }
-
-    const parsed = this.checkData(JSON.parse(data));
-    progress.update(100, "Imported " + parsed.length + " records");
-    return parsed;
+    return this.checkData(JSON.parse(data));
   }
 }
 

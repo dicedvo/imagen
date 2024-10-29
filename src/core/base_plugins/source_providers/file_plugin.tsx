@@ -1,46 +1,39 @@
 import FileImporterDialog from "@/components/FileImporterDialog";
 import {
-  DataProcessor,
-  DataRecord,
-  DataSource,
-  DataSourcePreElementProps,
+  SourceProvider,
+  SourceProviderOptions,
+  SourceDialogProps,
   SourceInput,
 } from "@/core/data";
 import { Plugin } from "@/core/plugin_system";
-import { UploadProgress } from "@/lib/progress";
 import { FileIcon } from "lucide-react";
 import { ReactNode } from "react";
 
-class FileImporter implements DataSource {
+class FileImporter implements SourceProvider {
   id = "file-importer";
-  title = "File Importer";
+  name = "File Importer";
   importFromLabel = "Import from file";
 
-  async import(
-    input: SourceInput,
-    progress: UploadProgress,
-    processors: DataProcessor[],
-  ): Promise<DataRecord[]> {
+  async preprocess(input: SourceInput, { progress }: SourceProviderOptions) {
     if (!(input instanceof File)) {
       throw new Error("Input is not a file");
     }
 
-    const importer = processors.find((importer) =>
-      importer.supportedFileTypes.includes(input.type),
-    );
-    if (!importer) {
-      throw new Error("No importer found for file");
-    }
+    progress.update(50, "Reading file");
 
-    return importer.process(input, progress);
+    return {
+      data: input,
+      filename: input.name,
+      contentType: input.type,
+    };
   }
 
   icon(props: { className?: string }): ReactNode {
     return <FileIcon {...props} />;
   }
 
-  preElement(props: DataSourcePreElementProps): ReactNode {
-    return <FileImporterDialog {...props} />;
+  dialogElement(props: SourceDialogProps): ReactNode {
+    return <FileImporterDialog {...props} provider={this} />;
   }
 }
 

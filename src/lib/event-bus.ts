@@ -1,11 +1,11 @@
 import mitt from "mitt";
 
-import { DataRecord } from "@/core/data";
+import { DataSource } from "@/core/data";
 import { PluginEvents } from "@/core/plugin_system";
 
 type Events = {
-  openImporter: { id: string };
-  onImportFinished: { source: string; data: DataRecord[] };
+  openImporter: { id: string; settings: Record<string, unknown> };
+  onImportFinished: { source: string; sources: DataSource[] };
 } & PluginEvents;
 
 const emitter = mitt<Events>();

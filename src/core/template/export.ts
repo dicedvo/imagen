@@ -5,7 +5,7 @@ import { IRegistry } from "../registries";
 import URIHandler from "../uri_handler";
 import TemplateRenderer, { RenderLayerFilter } from "./renderer";
 import { Template, TemplateInstanceValues } from "./types";
-import { compileTemplateValues, renderTemplateText } from "./values";
+import { compileDataRecordForTemplate, renderTemplateText } from "./values";
 import { loadAsyncImage } from "./konva-helpers";
 
 interface ExportInfo {
@@ -22,11 +22,6 @@ export interface ExportItem {
   height?: number;
 }
 
-type GetRawInstanceValueFn = (
-  r: DataRecord,
-  t: Template | null,
-) => TemplateInstanceValues | null;
-
 export async function exportImages({
   exporter,
   template,
@@ -34,7 +29,6 @@ export async function exportImages({
   filenameFormat,
   renderFilter,
   exporterOptions,
-  onGetRawTemplateInstanceValue,
   uriHandlersRegistry,
 }: {
   exporter: _OutputExporter;
@@ -43,7 +37,6 @@ export async function exportImages({
   filenameFormat: string;
   renderFilter?: RenderLayerFilter;
   exporterOptions: Record<string, unknown>;
-  onGetRawTemplateInstanceValue: GetRawInstanceValueFn;
   uriHandlersRegistry: IRegistry<URIHandler>;
 }) {
   if (!template) {
@@ -51,19 +44,15 @@ export async function exportImages({
   }
 
   const toBeExported = records
-    .map((record, idx) => {
-      const rawValues = onGetRawTemplateInstanceValue(record, template);
-      if (!rawValues) return null;
-      return {
-        filename: renderTemplateText(filenameFormat, {
-          ...record,
-          _index: idx,
-        }),
-        values: compileTemplateValues(rawValues, record),
-        width: template.settings.canvas_width,
-        height: template.settings.canvas_height,
-      };
-    })
+    .map((record, idx) => ({
+      filename: renderTemplateText(filenameFormat, {
+        ...record,
+        _index: idx,
+      }),
+      values: compileDataRecordForTemplate(record, template),
+      width: template.settings.canvas_width,
+      height: template.settings.canvas_height,
+    }))
     .filter(Boolean) as ExportInfo[];
 
   if (toBeExported.length === 0) {

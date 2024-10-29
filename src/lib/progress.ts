@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { produce } from "immer";
+import { useEffect, useMemo, useState } from "react";
 
 export interface UploadProgressMap {
   entries: Record<string, UploadProgress>;
@@ -50,31 +51,41 @@ export function useUploadProgressMap(): UploadProgressMap {
 
   const onUpdate = (file: string) => {
     return (e: UploadProgress) => {
-      setEntries((entries) => {
-        entries[file] = e;
-        return { ...entries };
-      });
+      setEntries(
+        produce((draftEntries) => {
+          draftEntries[file] = e;
+        }),
+      );
     };
   };
+
+  useEffect(() => {
+    console.log("entries", entries);
+  }, [entries]);
 
   return {
     entries,
     isDone,
     update(file: string, progress: number, message: string) {
-      setEntries((entries) => {
-        const updateFn = onUpdate(file);
-        if (!entries[file]) {
-          entries[file] = createUploadProgress(updateFn);
-        }
-        updateProgress(updateFn, progress, message);
-        return { ...entries };
-      });
+      setEntries(
+        produce((entries) => {
+          const updateFn = onUpdate(file);
+          if (!entries[file]) {
+            entries[file] = createUploadProgress(updateFn);
+          }
+          updateProgress(updateFn, progress, message);
+        }),
+      );
     },
     get(file) {
       if (!entries[file]) {
-        return createUploadProgress((p) => {
-          console.log("[unhandled]", p.progress, p.message);
-        });
+        setEntries(
+          produce((entries) => {
+            entries[file] = createUploadProgress((p) => {
+              console.log("[unhandled]", p.progress, p.message);
+            });
+          }),
+        );
       }
       return entries[file];
     },

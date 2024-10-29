@@ -6,6 +6,7 @@ import {
 import { Liquid, Tokenizer, Token, TokenKind } from "liquidjs";
 import { IRegistry } from "@/core/registries";
 import ImageGenerator from "@/core/image_generator";
+import { DataRecord } from "../data";
 
 const engine = new Liquid();
 
@@ -88,4 +89,20 @@ export function valuesFromTemplate(
       return pv;
     }, {});
   return data;
+}
+
+export function compileDataRecordForTemplate(
+  record: DataRecord,
+  template: Template,
+) {
+  if (!record.templateValues[template.name]) {
+    throw new Error(
+      `No template values found for template ${template.name} in record ${record.id}`,
+    );
+  }
+
+  return compileTemplateValues(
+    record.templateValues[template.name],
+    record.data,
+  );
 }

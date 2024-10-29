@@ -1,8 +1,9 @@
 import { FieldValues } from "react-hook-form";
-import { DataProcessor, DataSource } from "./data";
+import { DataProcessor, SourceProvider } from "./data";
 import ImageGenerator, { ImageGeneratorValue } from "./image_generator";
 import { _OutputExporter } from "./output_exporter";
 import URIHandler from "./uri_handler";
+import { SchemaFieldType } from "./schema";
 
 export interface PluginMeta {
   id: string;
@@ -24,7 +25,10 @@ export interface Plugin {
 
 export interface PluginInterface {
   registerDataProcessor(importer: DataProcessor): void;
-  registerDataSource(source: DataSource): void;
+  registerDataSource(source: SourceProvider): void;
+  registerSchemaFieldType<SchemaSettings = unknown, Value = unknown>(
+    schemaFieldType: SchemaFieldType<SchemaSettings, Value>,
+  ): void;
   registerImageGenerator<T extends FieldValues = ImageGeneratorValue>(
     generator: ImageGenerator<T>,
   ): void;

@@ -41,7 +41,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useOutputExporterStore } from "@/stores/registry_store";
 import { useExport } from "@/lib/hooks";
 import { ExportItem } from "@/core/template/export";
-import useRecordsStore from "@/stores/records_store";
+import useDataStore from "@/stores/data_store";
 import jsPDF from "jspdf";
 import { pixels } from "@pacote/pixels";
 import useTemplateStore from "@/stores/template_store";
@@ -154,7 +154,7 @@ export default function PrintDialog({ children }: { children: ReactNode }) {
     "showOutline",
   ]);
 
-  const selectedRecords = useRecordsStore(
+  const selectedRecords = useDataStore(
     useShallow((state) => state.selectRecordsByScope(printScope)),
   );
   const { exportImages } = useExport();

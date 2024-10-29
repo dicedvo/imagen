@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import useFieldsStore from "@/stores/fields_store";
+import useSchemaStore from "@/stores/schema_store";
 import { cn } from "@/lib/utils";
 import FormFieldRenderer from "./FormFieldRenderer";
 import {
@@ -33,7 +33,7 @@ export default function DataRecordEditor({
     mode: "onChange",
   });
 
-  const fields = useFieldsStore((state) => state.fields);
+  const fields = useSchemaStore((state) => state.currentSchema.fields);
   // const updatedRecord = form.watch();
 
   useEffect(() => {

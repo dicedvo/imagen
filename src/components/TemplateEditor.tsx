@@ -51,7 +51,7 @@ export default function TemplateEditor({
     return () => subscription.unsubscribe();
   }, [values, form.watch]);
 
-  if (!values && !template) {
+  if (!values || !template) {
     return (
       <div
         className={cn(
@@ -67,7 +67,7 @@ export default function TemplateEditor({
   return (
     <div className={cn(className, "text-left w-full flex flex-col space-y-3")}>
       <Form {...form}>
-        {template!.elements
+        {template.elements
           .filter((te) => editableElementTypes[te.type] || te.type === "group")
           .map((templateElement, idx) =>
             templateElement.type === "group" ? (

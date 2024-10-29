@@ -4,7 +4,7 @@ import { createPluginRegistry, IPluginRegistry } from "@/core/registries";
 import emitter from "@/lib/event-bus";
 import {
   useDataProcessorStore,
-  useDataSourceStore,
+  useSourceProviderStore,
   useImageGeneratorsStore,
   useOutputExporterStore,
   useUriHandlersStore,
@@ -12,6 +12,8 @@ import {
 import ImageGenerator from "@/core/image_generator";
 import { PluginEvents } from "@/core/plugin_system";
 import { Handler } from "mitt";
+import { useSchemaFieldTypeStore } from "./schema_store";
+import { SchemaFieldType } from "@/core/schema";
 
 const usePluginStore = create<IPluginRegistry>((set, get) =>
   createPluginRegistry(
@@ -36,14 +38,35 @@ const usePluginStore = create<IPluginRegistry>((set, get) =>
       },
       registerDataSource(source) {
         console.log(`[registerDataSource] Registering ${source.id}`);
-        useDataSourceStore.getState().register(source);
+        useSourceProviderStore.getState().registry.register(source);
 
         const handler: Handler<PluginEvents["onPluginChangeState"]> = ({
           id,
           enabled,
         }) => {
           if (id === pluginId && !enabled) {
-            useDataSourceStore.getState().unregister(source.id);
+            useSourceProviderStore.getState().registry.unregister(source.id);
+            emitter.off("onPluginChangeState", handler);
+          }
+        };
+
+        emitter.on("onPluginChangeState", handler);
+      },
+      registerSchemaFieldType(schemaFieldType) {
+        console.log(
+          `[registerSchemaFieldType] Registering ${schemaFieldType.type}`,
+        );
+        useSchemaFieldTypeStore.getState().register({
+          id: schemaFieldType.type,
+          ...(schemaFieldType as SchemaFieldType<unknown, unknown>),
+        });
+
+        const handler: Handler<PluginEvents["onPluginChangeState"]> = ({
+          id,
+          enabled,
+        }) => {
+          if (id === pluginId && !enabled) {
+            useSchemaFieldTypeStore.getState().unregister(schemaFieldType.type);
             emitter.off("onPluginChangeState", handler);
           }
         };

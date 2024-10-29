@@ -20,6 +20,7 @@ export default function Tabs({ items }: { items: TabItem[] }) {
       <div className="w-20 flex flex-col bg-slate-50 border-r h-full">
         {items.map(({ title, icon: Icon }) => (
           <button
+            key={`tab-${title}`}
             onClick={() => setCurrentTab(title)}
             className={cn(
               "w-full flex flex-col items-center py-3 space-y-1 text-xs hover:bg-slate-200/40",

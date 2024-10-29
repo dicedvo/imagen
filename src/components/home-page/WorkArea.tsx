@@ -3,75 +3,43 @@ import TemplateEditor from "@/components/TemplateEditor";
 import TemplateImportDialog from "@/components/TemplateImportDialog";
 import { Button } from "@/components/ui/button";
 import {
+  compileDataRecordForTemplate,
   compileTemplateValues,
   valuesFromTemplate,
 } from "@/core/template/values";
 import emitter from "@/lib/event-bus";
-import useRecordsStore from "@/stores/records_store";
+import useDataStore from "@/stores/data_store";
 import { useImageGeneratorsStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
 import { UploadIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 export default function WorkArea() {
+  const [isTemplateImportOpen, setTemplateImportOpen] = useState(false);
   const [template, setTemplate] = useTemplateStore(
     useShallow((state) => [state.template, state.setTemplate]),
   );
-  const templateInstanceValues = useTemplateStore(
-    useShallow((state) => state.templateInstanceValues),
-  );
-  const [updateTemplateInstanceValue, getTemplateInstanceValues] =
-    useTemplateStore(
-      useShallow((state) => [
-        state.updateTemplateInstanceValue,
-        state.getTemplateInstanceValues,
-      ]),
-    );
-
-  const currentRecord = useRecordsStore(
-    useShallow((state) => state.currentRecord()),
-  );
 
   const imageGenerators = useImageGeneratorsStore();
-
-  const editableTemplateInstanceValues = useMemo(() => {
-    if (!template) {
-      return null;
-    } else if (currentRecord && currentRecord.__id) {
-      const gotValues = getTemplateInstanceValues(
-        currentRecord.__id,
-        template.name,
-      );
-
-      console.log(gotValues);
-
-      if (gotValues) {
-        return gotValues;
-      }
-    }
-    return valuesFromTemplate(template, imageGenerators);
-  }, [template, currentRecord, imageGenerators]);
+  const [currentRecord, updateRecord] = useDataStore(
+    useShallow((state) => [state.currentRecord(), state.updateRecord]),
+  );
 
   const previewTemplateInstanceValues = useMemo(() => {
-    if (
-      template &&
-      currentRecord &&
-      currentRecord.__id &&
-      editableTemplateInstanceValues
-    ) {
-      const values = getTemplateInstanceValues(
-        currentRecord.__id,
-        template.name,
-      );
+    if (!template || !currentRecord || !currentRecord.id) {
+      return {};
+    }
 
+    try {
+      return compileDataRecordForTemplate(currentRecord, template);
+    } catch (e) {
       return compileTemplateValues(
-        values ?? editableTemplateInstanceValues,
-        currentRecord,
+        valuesFromTemplate(template, imageGenerators),
+        currentRecord.data,
       );
     }
-    return editableTemplateInstanceValues;
-  }, [template, templateInstanceValues, currentRecord]);
+  }, [template, imageGenerators, currentRecord]);
 
   return (
     <>
@@ -94,9 +62,7 @@ export default function WorkArea() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
-                  emitter.emit("openImporter", { id: "template-import" })
-                }
+                onClick={() => setTemplateImportOpen(true)}
               >
                 <UploadIcon className="mr-2" />
                 <span>Import Template</span>
@@ -107,23 +73,33 @@ export default function WorkArea() {
           <div className="px-4 text-sm flex-1">
             <TemplateEditor
               template={template}
-              values={editableTemplateInstanceValues}
+              values={
+                template && currentRecord
+                  ? currentRecord.templateValues[template.name]
+                  : {}
+              }
               onChange={(newValues) => {
-                if (!template || !currentRecord || !currentRecord.__id) return;
-                console.log(newValues);
-
-                updateTemplateInstanceValue(
-                  currentRecord.__id,
-                  template.name,
-                  newValues,
-                );
+                if (!template || !currentRecord || !currentRecord.id) return;
+                updateRecord({
+                  ...currentRecord,
+                  templateValues: {
+                    ...currentRecord.templateValues,
+                    [template.name]: newValues,
+                  },
+                });
               }}
               className="h-full w-full"
             />
           </div>
         </div>
       </div>
-      <TemplateImportDialog onUpload={setTemplate} />
+
+      {/* template import dialog */}
+      <TemplateImportDialog
+        open={isTemplateImportOpen}
+        onOpenChange={setTemplateImportOpen}
+        onUpload={setTemplate}
+      />
     </>
   );
 }

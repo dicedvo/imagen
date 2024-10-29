@@ -1,18 +1,20 @@
 import { Plugin } from "@/core/plugin_system";
-import { DataProcessor, DataRecord, SourceInput } from "@/core/data";
-import { UploadProgress } from "@/lib/progress";
+import {
+  DataProcessor,
+  SourceProcessedFile,
+  DataSourceRecord,
+} from "@/core/data";
 import Papa from "papaparse";
 
 class CSVImporter implements DataProcessor {
   id = "csv";
   supportedFileTypes = ["text/csv"];
 
-  process(data: SourceInput, progress: UploadProgress): Promise<DataRecord[]> {
+  process({ data }: SourceProcessedFile): Promise<Record<string, unknown>[]> {
     return new Promise((resolve, reject) => {
-      Papa.parse<DataRecord>(data, {
+      Papa.parse<Record<string, unknown>>(data, {
         header: true,
         complete(results) {
-          progress.update(100, "Imported " + results.data.length + " records");
           resolve(results.data);
         },
         error(error) {

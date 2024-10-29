@@ -8,7 +8,7 @@ export default function TabViewContainer({
   children,
 }: {
   title: string;
-  actions: FC;
+  actions?: FC;
   afterTitle?: FC;
   children: ReactNode;
 }) {
@@ -16,19 +16,19 @@ export default function TabViewContainer({
     <div className="flex flex-col h-full">
       <div className="border-b">
         <div className="px-4 py-1 flex items-center justify-between">
-          <p className="font-semibold text-sm">{title}</p>
-          <div>
-            <Actions />
-          </div>
+          <p className="font-semibold text-sm py-2">{title}</p>
+          {Actions && (
+            <div>
+              <Actions />
+            </div>
+          )}
         </div>
 
         {AfterTitle && <AfterTitle />}
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full w-full overflow-hidden">
-          {children}
-        </ScrollArea>
+      <div className="flex-1 flex items-stretch overflow-hidden">
+        <ScrollArea className="h-full w-full">{children}</ScrollArea>
       </div>
     </div>
   );

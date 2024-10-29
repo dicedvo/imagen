@@ -30,7 +30,7 @@ import {
   ExportScope,
   outputExportSettingsSchema,
 } from "@/schemas/OutputExportSettingsSchema";
-import useRecordsStore from "@/stores/records_store";
+import useDataStore from "@/stores/data_store";
 import { useOutputExporterStore } from "@/stores/registry_store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ReactNode, useEffect, useMemo, useState } from "react";
@@ -95,7 +95,7 @@ export default function ExportDialog({
     "filenameFormat",
   ]);
   const currentExporter = useMemo(() => getExporter(exporterId), [exporterId]);
-  const forExportCount = useRecordsStore(
+  const forExportCount = useDataStore(
     useShallow((state) => state.selectRecordsByScope(exportScope).length),
   );
 

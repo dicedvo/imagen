@@ -5,15 +5,12 @@ import { _OutputExporter } from "@/core/output_exporter";
 import { ExportScope } from "@/schemas/OutputExportSettingsSchema";
 import { useUriHandlersStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
-import useRecordsStore from "@/stores/records_store";
+import useDataStore from "@/stores/data_store";
 import { RenderLayerFilter } from "@/core/template/renderer";
 
 export function useExport() {
-  const [template, getTemplateInstanceValues] = useTemplateStore(
-    useShallow((state) => [state.template, state.getTemplateInstanceValues]),
-  );
-
-  const selectRecordsByScope = useRecordsStore(
+  const template = useTemplateStore(useShallow((state) => state.template));
+  const selectRecordsByScope = useDataStore(
     useShallow((state) => state.selectRecordsByScope),
   );
 
@@ -48,7 +45,6 @@ export function useExport() {
       filenameFormat: finalFilenameFormat,
       renderFilter,
       exporterOptions,
-      onGetRawTemplateInstanceValue: getTemplateInstanceValues,
       uriHandlersRegistry,
     });
   };

@@ -16,17 +16,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataRecord, DataSource } from "@/core/data";
-import emitter from "@/lib/event-bus";
-import { Field, stringToField } from "@/schemas/FieldSchema";
-import useFieldsStore from "@/stores/fields_store";
-import useRecordsStore, {
+import { Field, Schema } from "@/lib/schema";
+import useSchemaStore from "@/stores/schema_store";
+import useDataStore, {
+  DataStoreState,
   RECORDS_SEARCH_KEY,
   useRecordsSearchIndex,
-} from "@/stores/records_store";
-import {
-  useDataProcessorStore,
-  useDataSourceStore,
-} from "@/stores/registry_store";
+} from "@/stores/data_store";
 import useSearchStore from "@/stores/search_store";
 import useTagsStore from "@/stores/tags_store";
 import useTemplateStore from "@/stores/template_store";
@@ -46,17 +42,49 @@ import {
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import MapFieldsDialog from "../MapFieldsDialog";
+import SourceProvidersDialog from "../SourceProvidersDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { renderTemplateText } from "@/core/template/values";
 
-function determineColumns(
+function determineColumns<SchemaType extends object = Record<string, unknown>>(
+  store: DataStoreState<SchemaType>,
   fields: Field[],
 ): ColumnDef<Partial<DataRecord>, DataRecord>[] {
   if (fields.length === 0) {
     return [];
   }
 
-  return fields.map(({ name, key }) => ({
+  return fields.map(({ name, key, value }) => ({
     header: name,
     accessorKey: key,
+    cell: ({ row }) => {
+      // TODO: use DataSource's systemSchemaValues to respect custom-defined schema values
+      const sourceId = store.sourceRecordToDataSourceIndex.get(
+        row.original.sourceRecordId!,
+      );
+      if (sourceId) {
+        const source = store.getSource(sourceId);
+        if (source) {
+          const systemSchemaValue = source.systemSchemaValues[key];
+          if (systemSchemaValue) {
+            return renderTemplateText(
+              systemSchemaValue! as string,
+              row.original.data!,
+            );
+          }
+        }
+      }
+      return renderTemplateText(value! as string, row.original.data!);
+    },
   }));
 }
 
@@ -67,11 +95,7 @@ function satisfiesFilterFn(filters: Filter[]) {
         continue;
       }
 
-      let field = filter.field;
-      if (field === "tags") {
-        field = "__tags";
-      }
-
+      const field = filter.field;
       if (!hasProperty(result, field)) {
         return false;
       }
@@ -321,21 +345,19 @@ function TagsDropdown({
   );
 }
 
-function DataView({
+function RecordsView({
   columns,
   records,
-  dataSources,
 }: {
   columns: ColumnDef<Partial<DataRecord>, DataRecord>[];
   records: DataRecord[];
-  dataSources: DataSource[];
 }) {
-  const [fields, addFields] = useFieldsStore(
-    useShallow((state) => [state.fields, state.addFields]),
+  const [fields] = useSchemaStore(
+    useShallow((state) => [state.currentSchema.fields]),
   );
 
   const [updateRecord, setCurrentRecordIndex, setSelectedRecordIndices] =
-    useRecordsStore(
+    useDataStore(
       useShallow((state) => [
         state.updateRecord,
         state.setCurrentRecordIndex,
@@ -343,7 +365,7 @@ function DataView({
       ]),
     );
 
-  const selectedRecordIndices = useRecordsStore(
+  const selectedRecordIndices = useDataStore(
     useShallow((state) => state.selectedRecordIndices),
   );
 
@@ -355,14 +377,7 @@ function DataView({
         <p className="text-muted-foreground text-2xl">No data added yet.</p>
 
         <div className="space-x-2">
-          <FieldEditorDialog onSave={addFields}>
-            <Button variant="secondary">
-              <PlusIcon className="mr-2" />
-              <span>Add field</span>
-            </Button>
-          </FieldEditorDialog>
-
-          <ImportDataMenu sources={dataSources}>
+          <ImportDataMenu>
             <Button variant="secondary">
               <ImportIcon className="mr-2" />
               <span>Import Data</span>
@@ -422,11 +437,11 @@ function DataView({
             return (
               <div className="flex items-center space-x-1">
                 <TagsDropdown
-                  value={row.original.__tags ?? []}
+                  value={row.original.tags ?? []}
                   onChange={(newTags) => {
                     updateRecord({
                       ...(row.original as DataRecord),
-                      __tags: newTags,
+                      tags: newTags,
                     });
                   }}
                 >
@@ -457,17 +472,21 @@ export default function DataList() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const recordsSearchIndex = useRecordsSearchIndex();
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
+  const [promptFirstTimeSchemaCreation, setPromptFirstTimeSchemaCreation] =
+    useState(false);
 
-  const [fields, addFields] = useFieldsStore(
-    useShallow((state) => [state.fields, state.addFields]),
+  const [sources, records] = useDataStore(
+    useShallow((state) => [state.sources, state.records]),
   );
-  const records = useRecordsStore(useShallow((state) => state.records));
 
-  const dataSources = useDataSourceStore((state) => state.items);
-  const dataProcessors = useDataProcessorStore((state) => state.items);
+  const [addSources, updateSource] = useDataStore(
+    useShallow((state) => [state.addSources, state.updateSource]),
+  );
+
+  const dataStore = useDataStore(useShallow((state) => state));
 
   const [addRecords, removeRecord, setSelectedRecordIndices, selectedRecords] =
-    useRecordsStore(
+    useDataStore(
       useShallow((state) => [
         state.addRecords,
         state.removeRecord,
@@ -476,9 +495,16 @@ export default function DataList() {
       ]),
     );
 
+  const [currentSchema, setSchema] = useSchemaStore(
+    useShallow((state) => [state.currentSchema, state.setSchema]),
+  );
+
   const columns = useMemo(
-    () => (!fields ? [] : determineColumns(fields)),
-    [fields],
+    () =>
+      !currentSchema.fields
+        ? []
+        : determineColumns(dataStore, currentSchema.fields),
+    [dataStore, currentSchema],
   );
 
   const shownColumns = useMemo(() => {
@@ -486,13 +512,7 @@ export default function DataList() {
       return columns;
     }
     return columns.filter(
-      (c) =>
-        "accessorKey" in c &&
-        columnsToShow.includes(
-          typeof c.accessorKey === "string"
-            ? c.accessorKey
-            : c.accessorKey.toString(),
-        ),
+      (c) => "accessorKey" in c && columnsToShow.includes(c.accessorKey),
     );
   }, [columns, columnsToShow]);
 
@@ -505,69 +525,38 @@ export default function DataList() {
     return filterResultsByFilter(
       results.length === 0
         ? records
-        : records.filter((r) => results.includes(r.__id)),
+        : records.filter((r) => results.includes(r.id)),
       filters,
     );
   }, [records, filters, searchQuery]);
 
   const [columnsToMap, setColumnsToMap] = useState<string[]>([]);
-  const [dataToImport, setDataToImport] = useState<DataRecord[]>([]);
 
-  const handleImportFinished = ({ data }: { data: DataRecord[] }) => {
-    const forMap: Record<string, boolean> = {};
-    const existingFields = fields
-      .map((f) => f.key)
-      .reduce<Record<string, boolean>>((pv, cv) => {
-        pv[cv] = true;
-        return pv;
-      }, {});
-
-    for (const record of data) {
-      for (const fieldName in record) {
-        if (
-          fieldName === "__id" ||
-          existingFields[fieldName] ||
-          forMap[fieldName]
-        ) {
-          continue;
-        }
-        forMap[fieldName] = true;
-      }
-    }
-
-    let shouldMap = true;
-    if (Object.keys(forMap).length === 0 || fields.length === 0) {
-      shouldMap = false;
-    }
-
-    if (shouldMap) {
-      setColumnsToMap(Object.keys(forMap));
-      setDataToImport(data);
-    } else {
-      addRecords(...data);
-      addFields(...stringToField(Object.keys(forMap)));
+  const handleImportFinished = ({
+    sources,
+  }: {
+    source: string;
+    sources: DataSource<Schema>[];
+  }) => {
+    addSources(...sources);
+    if (currentSchema.fields.length === 0) {
+      setPromptFirstTimeSchemaCreation(true);
     }
   };
 
   useEffect(() => {
-    emitter.on("onImportFinished", handleImportFinished);
-
     // MiniSearch does not support adding/removing fields to index
     // so we need to reinitialize the search instance
     useSearchStore.reinitializeSearchInstance(RECORDS_SEARCH_KEY, {
-      fields: ["__id", ...fields.map((f) => f.key)],
+      fields: ["id", ...currentSchema.fields.map((f) => f.key)],
     });
-
-    return () => {
-      emitter.off("onImportFinished", handleImportFinished);
-    };
-  }, [fields]);
+  }, [currentSchema]);
 
   return (
     <div className="flex flex-col h-full w-full">
       <div className="h-full w-full">
         <div className="px-4 py-1 flex items-center justify-between">
-          <p className="font-semibold text-sm">Data List</p>
+          <p className="font-semibold text-sm">Records</p>
 
           <div>
             <ColumnsDropdown
@@ -581,7 +570,7 @@ export default function DataList() {
               </Button>
             </ColumnsDropdown>
 
-            <ImportDataMenu sources={dataSources}>
+            <ImportDataMenu>
               <Button size="sm" variant="ghost">
                 <ImportIcon className="mr-2" size={16} />
                 <span>Import</span>
@@ -589,7 +578,11 @@ export default function DataList() {
             </ImportDataMenu>
 
             <AddEntryDialog onSuccess={addRecords}>
-              <Button disabled={fields.length === 0} size="sm" variant="ghost">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={currentSchema.fields.length === 0}
+              >
                 <PlusIcon className="mr-2" size={16} />
                 <span>Add Entry</span>
               </Button>
@@ -628,7 +621,7 @@ export default function DataList() {
                   variant="ghost"
                   onClick={() => {
                     for (const record of selectedRecords) {
-                      removeRecord(record.__id);
+                      removeRecord(record.id);
                     }
                     setSelectedRecordIndices();
                   }}
@@ -653,11 +646,7 @@ export default function DataList() {
             />
           </div>
 
-          <DataView
-            columns={shownColumns}
-            records={filteredRecords}
-            dataSources={dataSources}
-          />
+          <RecordsView columns={shownColumns} records={filteredRecords} />
         </div>
       </div>
 
@@ -665,46 +654,59 @@ export default function DataList() {
         open={columnsToMap.length > 0}
         onOpenChange={() => {}}
         columns={columnsToMap}
-        existingFields={fields}
+        existingFields={currentSchema.fields}
         onSuccess={(mappings) => {
-          // Create fields first
-          const fieldsToCreate = Object.entries(mappings)
-            .filter((en) => en[1] === "--create--")
-            .map((en) => en[0]);
-          addFields(...stringToField(fieldsToCreate));
-
-          // Now map the entries
-          addRecords(
-            ...dataToImport.map((record) => {
-              const newRecord: DataRecord = { __id: "" };
-              for (const oldField in record) {
-                const newField =
-                  mappings[oldField] !== "--create--"
-                    ? mappings[oldField]
-                    : oldField;
-                newRecord[newField] = record[oldField];
-              }
-              return newRecord;
-            }),
-          );
-
-          setDataToImport([]);
           setColumnsToMap([]);
         }}
       />
 
-      {dataSources
-        .filter((source) => source.preElement)
-        .map((source) => {
-          const DataSourcePreElement = source.preElement!;
-          return (
-            <DataSourcePreElement
-              processors={dataProcessors}
-              onImportFinished={handleImportFinished}
-              key={`importer_${source.id}`}
-            />
-          );
-        })}
+      <SourceProvidersDialog onImportFinished={handleImportFinished} />
+
+      {promptFirstTimeSchemaCreation && (
+        <AlertDialog
+          open={promptFirstTimeSchemaCreation}
+          onOpenChange={setPromptFirstTimeSchemaCreation}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You have not created a schema yet. The schema of your first
+                imported source will be used instead.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (sources.length === 0) return;
+                  const firstSource = sources[0];
+
+                  if (firstSource.schema.fields.length === 0) return;
+                  setSchema(firstSource.schema);
+
+                  updateSource({
+                    ...firstSource,
+                    systemSchemaValues: firstSource.schema.fields
+                      .map<[string, unknown]>((f) => [f.key, f.value!])
+                      .reduce<Record<string, unknown>>(
+                        (acc, [key, value]) => ({
+                          ...acc,
+                          [key]: value,
+                        }),
+                        {},
+                      ),
+                  });
+
+                  setPromptFirstTimeSchemaCreation(false);
+                }}
+              >
+                Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

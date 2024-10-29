@@ -1,23 +1,22 @@
 import { EditIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import FieldEditorDialog from "../FieldEditorDialog";
-import useFieldsStore from "@/stores/fields_store";
+import useSchemaStore from "@/stores/schema_store";
 import { useShallow } from "zustand/react/shallow";
-import useRecordsStore from "@/stores/records_store";
 import TabViewContainer from "./TabViewContainer";
 
-export default function FieldsList() {
-  const [fields, addFields, updateField] = useFieldsStore(
-    useShallow((state) => [state.fields, state.addFields, state.updateField]),
-  );
-
-  const [records, updateRecord] = useRecordsStore(
-    useShallow((state) => [state.records, state.updateRecord]),
+export default function SchemaEditor() {
+  const [fields, addFields, updateField] = useSchemaStore(
+    useShallow((state) => [
+      state.currentSchema.fields,
+      state.addFields,
+      state.updateField,
+    ]),
   );
 
   return (
     <TabViewContainer
-      title="Fields"
+      title="Schema"
       actions={() => (
         <div>
           <FieldEditorDialog onSave={addFields}>
@@ -60,17 +59,18 @@ export default function FieldsList() {
                 onSave={(updatedField) => {
                   updateField(updatedField);
 
-                  if (updatedField.key !== field.key) {
-                    records
-                      .map((record) => {
-                        if (record[field.key] !== undefined) {
-                          record[updatedField.key] = record[field.key];
-                          delete record[field.key];
-                        }
-                        return record;
-                      })
-                      .forEach(updateRecord);
-                  }
+                  // TODO:
+                  // if (updatedField.key !== field.key) {
+                  //   records
+                  //     .map((record) => {
+                  //       if (record[field.key] !== undefined) {
+                  //         record[updatedField.key] = record[field.key];
+                  //         delete record[field.key];
+                  //       }
+                  //       return record;
+                  //     })
+                  //     .forEach(updateRecord);
+                  // }
                 }}
               >
                 <Button size="sm" variant="secondary">
