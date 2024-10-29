@@ -38,7 +38,9 @@ export default function EBAlertDialog() {
 
   useEffect(() => {
     if (!open) {
-      setDialogDetails(null);
+      setTimeout(() => {
+        setDialogDetails(null);
+      }, 210); // 210ms delay to allow the dialog to close
     }
   }, [open]);
 
