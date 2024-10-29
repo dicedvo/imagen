@@ -2,7 +2,7 @@ import { DataRecord, DataSource, toDataRecord } from "@/core/data";
 import { ExportScope } from "@/schemas/OutputExportSettingsSchema";
 import { create } from "zustand";
 import useSearchStore from "./search_store";
-import { Schema } from "@/lib/schema";
+import { conformRecordDataToSchema, Schema } from "@/lib/schema";
 import fastDeepEqual from "fast-deep-equal";
 
 export interface DataStoreState<
@@ -26,6 +26,7 @@ export interface DataStoreState<
   currentRecordIndex: number;
   addRecords: (...records: DataRecord[]) => void;
   updateRecord: (record: DataRecord) => void;
+  conformRecordsToSchema: (sourceId: string, schema: SchemaType) => void;
   removeRecord: (recordKey: string) => void;
   removeRecordsBySourceRecordIds(...sourceRecordIds: string[]): void;
   setCurrentRecordIndex: (index: number) => void;
@@ -150,14 +151,18 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
         }
 
         // Remove existing records from the store
+        const recordsToRemove = state.sources[index].records.filter(
+          (r) => !source.records.some((r2) => r2.id === r.id),
+        );
+
         state.removeRecordsBySourceRecordIds(
-          ...state.sources[index].records.map((r) => r.id),
+          ...recordsToRemove.map((r) => r.id),
         );
 
         // Add new records to the store
-        source.records.forEach((record) =>
-          state.addRecords(toDataRecord(record)),
-        );
+        source.records.forEach((record) => {
+          state.addRecords(toDataRecord(record));
+        });
 
         // Add new records to the store (if any)
         return {
@@ -174,7 +179,7 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
     },
     getSource: (sourceId) => {
       const idx = get().sourceIndex.get(sourceId);
-      if (!idx) {
+      if (typeof idx === "undefined") {
         return null;
       }
       return get().sources[idx];
@@ -186,8 +191,12 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
     currentRecordIndex: -1,
     addRecords: (...records) => {
       set((state) => {
+        // To avoid duplicates, we base the comparison on it's sourceRecordId
         const newRecords = records.filter(
-          (record) => !state.records.some((r) => r.id === record.id),
+          (record) =>
+            !state.records.some(
+              (r) => r.sourceRecordId === record.sourceRecordId,
+            ),
         );
         dataRecordSearchIndexer.addAll(newRecords);
         return { records: [...state.records, ...newRecords] };
@@ -294,6 +303,32 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
           }
           return get().records;
       }
+    },
+    conformRecordsToSchema: (sourceId, schema) => {
+      set((state) => {
+        const sourceIdx = state.sourceIndex.get(sourceId);
+        if (typeof sourceIdx === "undefined") {
+          return state;
+        }
+
+        const conformedRecords = conformRecordDataToSchema(
+          state.records.filter(
+            (record) =>
+              state.sourceRecordToDataSourceIndex.get(record.sourceRecordId) ===
+              sourceId,
+          ),
+          schema,
+        );
+
+        return {
+          records: state.records.map((record) => {
+            const conformedRecord = conformedRecords.find(
+              (r) => r.sourceRecordId === record.sourceRecordId,
+            );
+            return conformedRecord || record;
+          }),
+        };
+      });
     },
   };
 });

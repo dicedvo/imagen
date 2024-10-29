@@ -38,17 +38,19 @@ function ListGroup({
 }
 
 export default function SourcesList() {
-  const [schemaToMap, setSchemaToMap] = useState<DataSource<Schema> | null>(
+  const [sourceToMap, setSourceToMap] = useState<DataSource<Schema> | null>(
     null,
   );
 
   const currentSchema = useSchemaStore((state) => state.currentSchema);
 
-  const [dataSources, removeSource, updateSource] = useDataStore((state) => [
-    state.sources,
-    state.removeSource,
-    state.updateSource,
-  ]);
+  const [dataSources, removeSource, updateSource, conformRecordsToSchema] =
+    useDataStore((state) => [
+      state.sources,
+      state.removeSource,
+      state.updateSource,
+      state.conformRecordsToSchema,
+    ]);
 
   const [dataSourceProviders, dataSourceProviderInstances] =
     useSourceProviderStore(
@@ -122,7 +124,7 @@ export default function SourcesList() {
                       <div className="flex items-center space-x-2">
                         <Button
                           size="icon"
-                          onClick={() => setSchemaToMap(source)}
+                          onClick={() => setSourceToMap(source)}
                           variant="secondary"
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -200,20 +202,20 @@ export default function SourcesList() {
       </TabViewContainer>
 
       <MapSchemaDialog
-        source={schemaToMap}
+        source={sourceToMap}
         currentSchema={currentSchema}
-        onClose={() => setSchemaToMap(null)}
+        onClose={() => setSourceToMap(null)}
         onSuccess={(mappings) => {
-          if (!schemaToMap) return;
+          if (!sourceToMap) return;
 
           // setTimeout to 200ms, pop the columnsToMapStack, and then set the mappings
           setTimeout(() => {
             updateSource({
-              ...schemaToMap,
+              ...sourceToMap,
               systemSchemaValues: mappings as Record<string, unknown>,
             });
-
-            setSchemaToMap(null);
+            conformRecordsToSchema(sourceToMap.id, currentSchema);
+            setSourceToMap(null);
           }, 200);
         }}
       />

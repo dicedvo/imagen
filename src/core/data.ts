@@ -36,7 +36,7 @@ export interface DataRecord {
   id: string;
   sourceRecordId: string; // The data source record this data record is based on
   tags: string[];
-  data: Record<string, unknown>; // Data from the data source record (can be modified)
+  data: { original: Record<string, unknown> } & Record<string, unknown>; // Cached data from the data source record binded to system schema values
   templateValues: Record<string, Record<string, unknown>>; // Unevaluated/raw template values for the data record
 }
 
@@ -48,8 +48,10 @@ export function toDataRecord(
     id: onGenerateId(),
     sourceRecordId: record.id,
     tags: [],
-    get data() {
-      return record.data;
+    data: {
+      get original() {
+        return record.data;
+      },
     },
     templateValues: {},
   };

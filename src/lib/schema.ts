@@ -1,7 +1,14 @@
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { DataSourceRecord, transformRecordKey } from "@/core/data";
+import {
+  DataSource,
+  DataRecord,
+  DataSourceRecord,
+  transformRecordKey,
+} from "@/core/data";
 import { SchemaFieldType } from "@/core/schema";
+import useDataStore from "@/stores/data_store";
+import { renderTemplateText } from "@/core/template/values";
 
 const FieldSchema = z.object({
   id: z.string().optional(),
@@ -114,6 +121,50 @@ export function inferSchema(
   return {
     fields: Object.values(fields),
   };
+}
+
+export function conformRecordDataToSchema(
+  record: DataRecord[],
+  schema: Schema,
+): DataRecord[] {
+  const cachedSources: Record<string, DataSource> = {};
+  return record.map((r) => {
+    const sourceId = useDataStore
+      .getState()
+      .sourceRecordToDataSourceIndex.get(r.sourceRecordId);
+    if (!sourceId) {
+      return r;
+    } else if (!cachedSources[sourceId]) {
+      const foundSource = useDataStore.getState().getSource(sourceId);
+      if (!foundSource) {
+        return r;
+      }
+      cachedSources[sourceId] = foundSource;
+    }
+
+    const source = cachedSources[sourceId];
+    const data: DataRecord["data"] = {
+      original: r.data.original,
+    };
+
+    for (const field of schema.fields) {
+      if (source.systemSchemaValues[field.key]) {
+        data[field.key] = source.systemSchemaValues[field.key];
+      } else {
+        data[field.key] = field.value;
+      }
+
+      data[field.key] = renderTemplateText(
+        data[field.key]! as string,
+        r.data.original,
+      );
+    }
+
+    return {
+      ...r,
+      data,
+    };
+  });
 }
 
 export default FieldSchema;

@@ -96,9 +96,7 @@ export function compileDataRecordForTemplate(
   template: Template,
 ) {
   if (!record.templateValues[template.name]) {
-    throw new Error(
-      `No template values found for template ${template.name} in record ${record.id}`,
-    );
+    return null;
   }
 
   return compileTemplateValues(

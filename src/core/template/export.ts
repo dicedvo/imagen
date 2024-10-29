@@ -49,7 +49,7 @@ export async function exportImages({
         ...record,
         _index: idx,
       }),
-      values: compileDataRecordForTemplate(record, template),
+      values: compileDataRecordForTemplate(record, template) ?? {},
       width: template.settings.canvas_width,
       height: template.settings.canvas_height,
     }))

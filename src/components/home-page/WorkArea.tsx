@@ -7,7 +7,6 @@ import {
   compileTemplateValues,
   valuesFromTemplate,
 } from "@/core/template/values";
-import emitter from "@/lib/event-bus";
 import useDataStore from "@/stores/data_store";
 import { useImageGeneratorsStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
@@ -31,14 +30,13 @@ export default function WorkArea() {
       return {};
     }
 
-    try {
-      return compileDataRecordForTemplate(currentRecord, template);
-    } catch (e) {
-      return compileTemplateValues(
+    return (
+      compileDataRecordForTemplate(currentRecord, template) ??
+      compileTemplateValues(
         valuesFromTemplate(template, imageGenerators),
         currentRecord.data,
-      );
-    }
+      )
+    );
   }, [template, imageGenerators, currentRecord]);
 
   return (
@@ -75,7 +73,12 @@ export default function WorkArea() {
               template={template}
               values={
                 template && currentRecord
-                  ? currentRecord.templateValues[template.name]
+                  ? (currentRecord.templateValues[template.name] ??
+                    compileDataRecordForTemplate(currentRecord, template) ??
+                    compileTemplateValues(
+                      valuesFromTemplate(template, imageGenerators),
+                      currentRecord.data,
+                    ))
                   : {}
               }
               onChange={(newValues) => {

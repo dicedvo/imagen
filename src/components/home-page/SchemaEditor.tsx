@@ -4,15 +4,28 @@ import FieldEditorDialog from "../FieldEditorDialog";
 import useSchemaStore from "@/stores/schema_store";
 import { useShallow } from "zustand/react/shallow";
 import TabViewContainer from "./TabViewContainer";
+import useDataStore from "@/stores/data_store";
+import { useEffect } from "react";
 
 export default function SchemaEditor() {
-  const [fields, addFields, updateField] = useSchemaStore(
+  const [sources, conformRecordsToSchema] = useDataStore((state) => [
+    state.sources,
+    state.conformRecordsToSchema,
+  ]);
+
+  const [currentSchema, addFields, updateField] = useSchemaStore(
     useShallow((state) => [
-      state.currentSchema.fields,
+      state.currentSchema,
       state.addFields,
       state.updateField,
     ]),
   );
+
+  useEffect(() => {
+    sources.forEach((s) => {
+      conformRecordsToSchema(s.id, currentSchema);
+    });
+  }, [sources, currentSchema]);
 
   return (
     <TabViewContainer
@@ -29,7 +42,7 @@ export default function SchemaEditor() {
       )}
     >
       <div className="flex flex-col px-4">
-        {fields.length === 0 && (
+        {currentSchema.fields.length === 0 && (
           <div className="flex flex-col items-center space-y-4 py-8">
             <p className="text-xl text-gray-600">
               No fields have been added yet.
@@ -44,7 +57,7 @@ export default function SchemaEditor() {
           </div>
         )}
 
-        {fields.map((field) => (
+        {currentSchema.fields.map((field) => (
           <div
             key={field.key}
             className="flex items-center justify-between py-4 border-b"
@@ -54,25 +67,7 @@ export default function SchemaEditor() {
               <p className="text-xs text-gray-500">{field.key}</p>
             </div>
             <div className="space-x-2">
-              <FieldEditorDialog
-                field={field}
-                onSave={(updatedField) => {
-                  updateField(updatedField);
-
-                  // TODO:
-                  // if (updatedField.key !== field.key) {
-                  //   records
-                  //     .map((record) => {
-                  //       if (record[field.key] !== undefined) {
-                  //         record[updatedField.key] = record[field.key];
-                  //         delete record[field.key];
-                  //       }
-                  //       return record;
-                  //     })
-                  //     .forEach(updateRecord);
-                  // }
-                }}
-              >
+              <FieldEditorDialog field={field} onSave={updateField}>
                 <Button size="sm" variant="secondary">
                   <EditIcon className="mr-1.5" size={14} />
                   <span>Edit</span>

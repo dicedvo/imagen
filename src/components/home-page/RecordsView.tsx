@@ -57,10 +57,14 @@ function determineColumns<SchemaType extends object = Record<string, unknown>>(
     header: name,
     accessorKey: key,
     cell: ({ row }) => {
-      // TODO: use DataSource's systemSchemaValues to respect custom-defined schema values
+      if (row.original.data && row.original.data[key]) {
+        return row.original.data[key];
+      }
+
       const sourceId = store.sourceRecordToDataSourceIndex.get(
         row.original.sourceRecordId!,
       );
+
       if (sourceId) {
         const source = store.getSource(sourceId);
         if (source) {
@@ -68,12 +72,14 @@ function determineColumns<SchemaType extends object = Record<string, unknown>>(
           if (systemSchemaValue) {
             return renderTemplateText(
               systemSchemaValue! as string,
-              row.original.data!,
+              row.original.data!.original,
             );
           }
         }
       }
-      return renderTemplateText(value! as string, row.original.data!);
+
+      // Use fallback template text using original data
+      return renderTemplateText(value! as string, row.original.data!.original);
     },
   }));
 }
@@ -465,8 +471,12 @@ export default function DataList() {
 
   const dataStore = useDataStore(useShallow((state) => state));
   const records = useDataStore(useShallow((state) => state.records));
-  const [addSources, updateSource] = useDataStore(
-    useShallow((state) => [state.addSources, state.updateSource]),
+  const [addSources, updateSource, conformRecordsToSchema] = useDataStore(
+    useShallow((state) => [
+      state.addSources,
+      state.updateSource,
+      state.conformRecordsToSchema,
+    ]),
   );
 
   const [addRecords, removeRecord, setSelectedRecordIndices, selectedRecords] =
@@ -539,7 +549,7 @@ export default function DataList() {
               const firstSource = sources[0];
 
               if (firstSource.schema.fields.length === 0) return;
-              setSchema(firstSource.schema);
+              setSchema(structuredClone(firstSource.schema));
 
               updateSource({
                 ...firstSource,
@@ -553,6 +563,8 @@ export default function DataList() {
                     {},
                   ),
               });
+
+              conformRecordsToSchema(firstSource.id, firstSource.schema);
 
               if (sources.length > 1) {
                 setColumnsToMapStack(sources.slice(1));
@@ -686,6 +698,8 @@ export default function DataList() {
               ...lastSource,
               systemSchemaValues: mappings as Record<string, unknown>,
             });
+
+            conformRecordsToSchema(lastSource.id, currentSchema);
             setColumnsToMapStack((prev) => prev.slice(0, -1));
           }, 200);
         }}

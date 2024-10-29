@@ -59,7 +59,7 @@ export default function TemplateEditor({
           "flex items-center justify-center text-center",
         )}
       >
-        <p>None selected.</p>
+        <p>None selected. {JSON.stringify([!!values, !!template])}</p>
       </div>
     );
   }
