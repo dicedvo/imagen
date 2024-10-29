@@ -27,6 +27,7 @@ export interface DataStoreState<
   addRecords: (...records: DataRecord[]) => void;
   updateRecord: (record: DataRecord) => void;
   removeRecord: (recordKey: string) => void;
+  removeRecordsBySourceRecordIds(...sourceRecordIds: string[]): void;
   setCurrentRecordIndex: (index: number) => void;
   setSelectedRecordIndices: (...indices: number[]) => void;
   currentRecord(): DataRecord | null;
@@ -113,7 +114,8 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
         newSources.splice(index, 1);
 
         // Remove records from the store
-        recordIds.forEach((recordId) => state.removeRecord(recordId));
+        state.removeRecordsBySourceRecordIds(...recordIds);
+
         return {
           sources: newSources,
           sourceRecordToDataSourceIndex: recordIds.reduce((acc, recordId) => {
@@ -148,8 +150,8 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
         }
 
         // Remove existing records from the store
-        state.sources[index].records.forEach((record) =>
-          state.removeRecord(record.id),
+        state.removeRecordsBySourceRecordIds(
+          ...state.sources[index].records.map((r) => r.id),
         );
 
         // Add new records to the store
@@ -213,6 +215,21 @@ const useDataStore = create<DataStoreState<Schema>>((set, get) => {
 
         dataRecordSearchIndexer.add(record);
         return { records: newRecords };
+      });
+    },
+    removeRecordsBySourceRecordIds: (...sourceRecordIds: string[]) => {
+      set((state) => {
+        state.records
+          .filter((r) => sourceRecordIds.includes(r.sourceRecordId))
+          .forEach((recordId) => {
+            dataRecordSearchIndexer.remove(recordId);
+          });
+
+        return {
+          records: state.records.filter(
+            (r) => !sourceRecordIds.includes(r.sourceRecordId),
+          ),
+        };
       });
     },
     removeRecord: (recordId: string) => {

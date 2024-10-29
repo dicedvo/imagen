@@ -12,6 +12,7 @@ import {
 } from "../ui/dropdown-menu";
 import useDataStore from "@/stores/data_store";
 import { TrashIcon } from "@radix-ui/react-icons";
+import { showAlertDialog } from "@/lib/utils";
 
 function ListGroup({
   title,
@@ -34,7 +35,10 @@ function ListGroup({
 }
 
 export default function SourcesList() {
-  const [dataSources] = useDataStore((state) => [state.sources]);
+  const [dataSources, removeSource] = useDataStore((state) => [
+    state.sources,
+    state.removeSource,
+  ]);
 
   const [dataSourceProviders, dataSourceProviderInstances] =
     useSourceProviderStore(
@@ -102,7 +106,22 @@ export default function SourcesList() {
                   </div>
 
                   <div>
-                    <Button variant="destructive">
+                    <Button
+                      onClick={() => {
+                        showAlertDialog({
+                          title: "Delete Source",
+                          description: `Are you sure you want to delete the source "${source.name}"?`,
+                          actions: {
+                            confirm: {
+                              onClick: () => {
+                                removeSource(source.id);
+                              },
+                            },
+                          },
+                        });
+                      }}
+                      variant="destructive"
+                    >
                       <TrashIcon className="h-4 w-4" />
                     </Button>
                   </div>
