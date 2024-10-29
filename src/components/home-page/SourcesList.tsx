@@ -89,46 +89,52 @@ export default function SourcesList() {
     >
       <div className="flex flex-col divide-y">
         <div className="flex flex-col flex-1">
-          {dataSources.map((source) => {
-            const SourceIcon =
-              dataSourceProviders.find(
-                (src) => src.id === source.sourceProviderId,
-              )?.icon ?? FileIcon;
-            return (
-              <div
-                key={`instance_${source.id}`}
-                className="px-4 py-2 hover:bg-slate-200/40"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <SourceIcon />
-                    <div className="text-sm font-semibold">{source.name}</div>
-                  </div>
+          {dataSources.length > 0 ? (
+            dataSources.map((source) => {
+              const SourceIcon =
+                dataSourceProviders.find(
+                  (src) => src.id === source.sourceProviderId,
+                )?.icon ?? FileIcon;
+              return (
+                <div
+                  key={`instance_${source.id}`}
+                  className="px-4 py-2 hover:bg-slate-200/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <SourceIcon />
+                      <div className="text-sm font-semibold">{source.name}</div>
+                    </div>
 
-                  <div>
-                    <Button
-                      onClick={() => {
-                        showAlertDialog({
-                          title: "Delete Source",
-                          description: `Are you sure you want to delete the source "${source.name}"?`,
-                          actions: {
-                            confirm: {
-                              onClick: () => {
-                                removeSource(source.id);
+                    <div>
+                      <Button
+                        onClick={() => {
+                          showAlertDialog({
+                            title: "Delete Source",
+                            description: `Are you sure you want to delete the source "${source.name}"?`,
+                            actions: {
+                              confirm: {
+                                onClick: () => {
+                                  removeSource(source.id);
+                                },
                               },
                             },
-                          },
-                        });
-                      }}
-                      variant="destructive"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
+                          });
+                        }}
+                        variant="destructive"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="h-48 flex flex-col items-center justify-center">
+              <p className="text-sm text-slate-500">No source added yet.</p>
+            </div>
+          )}
         </div>
 
         <ListGroup className="flex-1" title="Source Providers">
