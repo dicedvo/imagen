@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import MapFieldsDialog from "../MapFieldsDialog";
+import MapSchemaDialog from "../MapFieldsDialog";
 import SourceProvidersDialog from "../SourceProvidersDialog";
 import { renderTemplateText } from "@/core/template/values";
 import { showAlertDialog } from "@/lib/utils";
@@ -463,15 +463,11 @@ export default function DataList() {
   const recordsSearchIndex = useRecordsSearchIndex();
   const [columnsToShow, setColumnsToShow] = useState<string[]>([]);
 
-  const [sources, records] = useDataStore(
-    useShallow((state) => [state.sources, state.records]),
-  );
-
+  const dataStore = useDataStore(useShallow((state) => state));
+  const records = useDataStore(useShallow((state) => state.records));
   const [addSources, updateSource] = useDataStore(
     useShallow((state) => [state.addSources, state.updateSource]),
   );
-
-  const dataStore = useDataStore(useShallow((state) => state));
 
   const [addRecords, removeRecord, setSelectedRecordIndices, selectedRecords] =
     useDataStore(
@@ -518,7 +514,9 @@ export default function DataList() {
     );
   }, [records, filters, searchQuery]);
 
-  const [columnsToMap, setColumnsToMap] = useState<string[]>([]);
+  const [sourcesToMapStack, setColumnsToMapStack] = useState<
+    DataSource<Schema>[]
+  >([]);
 
   const handleImportFinished = ({
     sources,
@@ -555,6 +553,10 @@ export default function DataList() {
                     {},
                   ),
               });
+
+              if (sources.length > 1) {
+                setColumnsToMapStack(sources.slice(1));
+              }
             },
           },
         },
@@ -668,13 +670,24 @@ export default function DataList() {
         </div>
       </div>
 
-      <MapFieldsDialog
-        open={columnsToMap.length > 0}
-        onOpenChange={() => {}}
-        columns={columnsToMap}
-        existingFields={currentSchema.fields}
+      <MapSchemaDialog
+        source={
+          sourcesToMapStack.length > 0
+            ? sourcesToMapStack[sourcesToMapStack.length - 1]
+            : null
+        }
+        currentSchema={currentSchema}
         onSuccess={(mappings) => {
-          setColumnsToMap([]);
+          // setTimeout to 200ms, pop the columnsToMapStack, and then set the mappings
+          setTimeout(() => {
+            const lastSource = sourcesToMapStack[sourcesToMapStack.length - 1];
+            if (!lastSource) return;
+            updateSource({
+              ...lastSource,
+              systemSchemaValues: mappings as Record<string, unknown>,
+            });
+            setColumnsToMapStack((prev) => prev.slice(0, -1));
+          }, 200);
         }}
       />
 
