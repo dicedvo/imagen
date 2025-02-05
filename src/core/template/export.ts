@@ -5,8 +5,9 @@ import { IRegistry } from "../registries";
 import URIHandler from "../uri_handler";
 import TemplateRenderer, { RenderLayerFilter } from "./renderer";
 import { Template, TemplateInstanceValues } from "./types";
-import { compileDataRecordForTemplate, renderTemplateText } from "./values";
+import { compileDataRecordForTemplate, compileTemplateValues, renderTemplateText, valuesFromTemplate } from "./values";
 import { loadAsyncImage } from "./konva-helpers";
+import ImageGenerator from "../image_generator";
 
 interface ExportInfo {
   filename: string;
@@ -30,6 +31,7 @@ export async function exportImages({
   renderFilter,
   exporterOptions,
   uriHandlersRegistry,
+  imageGenerators
 }: {
   exporter: _OutputExporter;
   template: Template | null;
@@ -38,6 +40,7 @@ export async function exportImages({
   renderFilter?: RenderLayerFilter;
   exporterOptions: Record<string, unknown>;
   uriHandlersRegistry: IRegistry<URIHandler>;
+  imageGenerators: IRegistry<ImageGenerator>;
 }) {
   if (!template) {
     throw new Error("No template loaded");
@@ -49,7 +52,8 @@ export async function exportImages({
         ...record,
         _index: idx,
       }),
-      values: compileDataRecordForTemplate(record, template) ?? {},
+      values: compileDataRecordForTemplate(record, template) 
+           ?? compileTemplateValues(valuesFromTemplate(template, imageGenerators), record.data),
       width: template.settings.canvas_width,
       height: template.settings.canvas_height,
     }))

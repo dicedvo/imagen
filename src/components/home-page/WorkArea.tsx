@@ -11,7 +11,7 @@ import useDataStore from "@/stores/data_store";
 import { useImageGeneratorsStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
 import { UploadIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 export default function WorkArea() {
@@ -39,10 +39,6 @@ export default function WorkArea() {
       )
     );
   }, [template, imageGenerators, currentRecord]);
-
-  useEffect(() => {
-    console.log(previewTemplateInstanceValues);
-  }, [previewTemplateInstanceValues]);
 
   return (
     <>

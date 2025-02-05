@@ -3,7 +3,7 @@ import { DataRecord } from "@/core/data";
 import { exportImages as _exportImages } from "@/core/template/export";
 import { _OutputExporter } from "@/core/output_exporter";
 import { ExportScope } from "@/schemas/OutputExportSettingsSchema";
-import { useUriHandlersStore } from "@/stores/registry_store";
+import { useImageGeneratorsStore, useUriHandlersStore } from "@/stores/registry_store";
 import useTemplateStore from "@/stores/template_store";
 import useDataStore from "@/stores/data_store";
 import { RenderLayerFilter } from "@/core/template/renderer";
@@ -15,6 +15,7 @@ export function useExport() {
   );
 
   const uriHandlersRegistry = useUriHandlersStore();
+  const imageGeneratorsRegistry = useImageGeneratorsStore();
 
   const exportImages = ({
     exporter,
@@ -46,6 +47,7 @@ export function useExport() {
       renderFilter,
       exporterOptions,
       uriHandlersRegistry,
+      imageGenerators: imageGeneratorsRegistry,
     });
   };
 
