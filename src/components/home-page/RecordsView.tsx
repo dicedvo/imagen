@@ -386,7 +386,7 @@ function RecordsView({
 
   return (
     <DataTable
-      className="border-y overflow-y-auto"
+      className="border-y h-full"
       data={records}
       rowSelection={selectedRecordIndices
         .map((idx) => idx)
