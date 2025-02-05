@@ -49,7 +49,7 @@ export async function exportImages({
   const toBeExported = records
     .map((record, idx) => ({
       filename: renderTemplateText(filenameFormat, {
-        ...record,
+        ...record.data,
         _index: idx,
       }),
       values: compileDataRecordForTemplate(record, template) 
