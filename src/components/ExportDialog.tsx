@@ -73,7 +73,7 @@ export default function ExportDialog({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const { exportImages } = useExport();
+  const { exportImages, template } = useExport();
 
   const [outputExporters, getExporter] = useOutputExporterStore(
     useShallow((state) => [state.items, state.get]),
@@ -99,6 +99,14 @@ export default function ExportDialog({
     useShallow((state) => state.selectRecordsByScope(exportScope).length),
   );
 
+  const allRecordsCount = useDataStore(
+    useShallow((state) => state.selectRecordsByScope("all").length),
+  );
+
+  const isExportable = useMemo(() => {
+    return (forExportCount > 0 || allRecordsCount > 0) && !!template;
+  }, [forExportCount, allRecordsCount, template]);
+
   useEffect(() => {
     if (outputExporters.length === 0) return;
     form.setValue("exporterId", outputExporters[0]?.id);
@@ -122,7 +130,7 @@ export default function ExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger disabled={forExportCount === 0} asChild>
+      <DialogTrigger disabled={!isExportable} asChild>
         {children}
       </DialogTrigger>
 

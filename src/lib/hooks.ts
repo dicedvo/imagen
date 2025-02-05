@@ -52,6 +52,7 @@ export function useExport() {
   };
 
   return {
+    template,
     exportImages,
   };
 }
